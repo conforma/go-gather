@@ -1,10 +1,12 @@
 module github.com/enterprise-contract/go-gather/gather/http
 
-go 1.21.9
+go 1.22.2
+
+toolchain go1.22.4
 
 require (
 	github.com/enterprise-contract/go-gather v0.0.0-20240523073727-ba2c37023242
-	github.com/enterprise-contract/go-gather/metadata v0.0.0-20240523073727-ba2c37023242
+	github.com/enterprise-contract/go-gather/metadata v0.0.0-20240605192053-1dbd1cbbfdcd
 	github.com/enterprise-contract/go-gather/metadata/http v0.0.0-20240523073727-ba2c37023242
 	github.com/enterprise-contract/go-gather/saver v0.0.0-20240523073727-ba2c37023242
 	github.com/stretchr/testify v1.9.0
