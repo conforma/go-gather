@@ -30,6 +30,8 @@ github.com/enterprise-contract/go-gather/gather/git v0.0.0-20240523073727-ba2c37
 github.com/enterprise-contract/go-gather/gather/git v0.0.0-20240523073727-ba2c37023242/go.mod h1:J8p1i92iL6mTYYtU4StPBbXROs7lfj8uLDgPuYbYEFE=
 github.com/enterprise-contract/go-gather/gather/http v0.0.0-20240523073727-ba2c37023242 h1:yREnwd9HAEefw36mk+ztHc/lRQ7Ej7GikNdg/zajvr4=
 github.com/enterprise-contract/go-gather/gather/http v0.0.0-20240523073727-ba2c37023242/go.mod h1:WxpV5IHjJi3wOK56m0JU749HQqhJilwPBR6/5CDLUAA=
+github.com/enterprise-contract/go-gather/gather/http v0.0.0-20240605192053-1dbd1cbbfdcd h1:u9UR1osvT3N+Znn6CWklMlCbN4xcW+Y1BH3EMQgMqg4=
+github.com/enterprise-contract/go-gather/gather/http v0.0.0-20240605192053-1dbd1cbbfdcd/go.mod h1:Fx0Anvh8Os39BaeTxxcvOwX1E9xisXehEueOkQ+qK3I=
 github.com/enterprise-contract/go-gather/metadata v0.0.0-20240523073727-ba2c37023242 h1:bRMpqsF+NbPf6R514yzo9fVL+8QqOkFoMpMdYjoPynw=
 github.com/enterprise-contract/go-gather/metadata v0.0.0-20240523073727-ba2c37023242/go.mod h1:m2HxByQBWZyc99HDs/Lqy7QzU9+XQ2tU0X/mzkCPgPw=
 github.com/enterprise-contract/go-gather/metadata/file v0.0.0-20240523073727-ba2c37023242 h1:zA8jD+54i4Yybivs7eI74I2hbrzZzW/ifGoBR+Q4T7U=
