@@ -1,10 +1,12 @@
 module github.com/enterprise-contract/go-gather/gather
 
-go 1.21.9
+go 1.22.2
+
+toolchain go1.22.4
 
 require (
 	github.com/enterprise-contract/go-gather v0.0.0-20240523073727-ba2c37023242
-	github.com/enterprise-contract/go-gather/gather/file v0.0.0-20240523073727-ba2c37023242
+	github.com/enterprise-contract/go-gather/gather/file v0.0.1
 	github.com/enterprise-contract/go-gather/gather/git v0.0.0-20240523073727-ba2c37023242
 	github.com/enterprise-contract/go-gather/gather/http v0.0.0-20240523073727-ba2c37023242
 	github.com/enterprise-contract/go-gather/metadata v0.0.0-20240523073727-ba2c37023242
@@ -18,6 +20,7 @@ require (
 	github.com/cloudflare/circl v1.3.8 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
+	github.com/enterprise-contract/go-gather/expander v0.0.1 // indirect
 	github.com/enterprise-contract/go-gather/metadata/file v0.0.0-20240523073727-ba2c37023242 // indirect
 	github.com/enterprise-contract/go-gather/metadata/http v0.0.0-20240523073727-ba2c37023242 // indirect
 	github.com/enterprise-contract/go-gather/saver v0.0.0-20240523073727-ba2c37023242 // indirect

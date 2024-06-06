@@ -24,8 +24,12 @@ github.com/emirpasic/gods v1.18.1 h1:FXtiHYKDGKCW2KzwZKx0iC0PQmdlorYgdFG9jPXJ1Bc
 github.com/emirpasic/gods v1.18.1/go.mod h1:8tpGGwCnJ5H4r6BWwaV6OrWmMoPhUl5jm/FMNAnJvWQ=
 github.com/enterprise-contract/go-gather v0.0.0-20240523073727-ba2c37023242 h1:rwPrnCtjvGwYCW5cErmWuYpFMKqsZD5OgCt87gm5gvc=
 github.com/enterprise-contract/go-gather v0.0.0-20240523073727-ba2c37023242/go.mod h1:gXqnYRW9uTD06xli3pE+9cwtPVcIdqyPIqBcKQ+kK8I=
+github.com/enterprise-contract/go-gather/expander v0.0.1 h1:CRJX7crqNyuuo82DtFbyIpJB/2hV62zWof4t1dOmCC0=
+github.com/enterprise-contract/go-gather/expander v0.0.1/go.mod h1:bZ7oijDzlpY3gGc+H48YSsxbCEGxmsqQj+PxnYjtrjg=
 github.com/enterprise-contract/go-gather/gather/file v0.0.0-20240523073727-ba2c37023242 h1:CoyDjbidEAcajFfC997u2cz8Hd0f6P/NDkMGyXg9/UM=
 github.com/enterprise-contract/go-gather/gather/file v0.0.0-20240523073727-ba2c37023242/go.mod h1:NCW5DW2U78n5IDLRiurryV3VmEVyyyuh+42zpcOimg4=
+github.com/enterprise-contract/go-gather/gather/file v0.0.1 h1:UOec5Gc7+Q9u3x0Cyw8l2JDYCH7RTtHVnC57Rqs0Nyg=
+github.com/enterprise-contract/go-gather/gather/file v0.0.1/go.mod h1:tHsShLa5XpNSZbH8paHZR3Ltgu/7wtxpdCTVP8EXk/U=
 github.com/enterprise-contract/go-gather/gather/git v0.0.0-20240523073727-ba2c37023242 h1:4oGqKn0dOUquWLDleQn/SkUsBXGseaoDH8gHmFII1RA=
 github.com/enterprise-contract/go-gather/gather/git v0.0.0-20240523073727-ba2c37023242/go.mod h1:J8p1i92iL6mTYYtU4StPBbXROs7lfj8uLDgPuYbYEFE=
 github.com/enterprise-contract/go-gather/gather/http v0.0.0-20240523073727-ba2c37023242 h1:yREnwd9HAEefw36mk+ztHc/lRQ7Ej7GikNdg/zajvr4=
