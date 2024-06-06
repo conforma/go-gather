@@ -1,9 +1,11 @@
 module github.com/enterprise-contract/go-gather/gather
 
-go 1.21.9
+go 1.22.2
+
+toolchain go1.22.4
 
 require (
-	github.com/enterprise-contract/go-gather v0.0.0-20240523073727-ba2c37023242
+	github.com/enterprise-contract/go-gather v0.0.1
 	github.com/enterprise-contract/go-gather/gather/file v0.0.0-20240523073727-ba2c37023242
 	github.com/enterprise-contract/go-gather/gather/git v0.0.0-20240523073727-ba2c37023242
 	github.com/enterprise-contract/go-gather/gather/http v0.0.0-20240523073727-ba2c37023242

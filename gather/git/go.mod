@@ -3,7 +3,7 @@ module github.com/enterprise-contract/go-gather/gather/git
 go 1.21.9
 
 require (
-	github.com/enterprise-contract/go-gather v0.0.0-20240523073727-ba2c37023242
+	github.com/enterprise-contract/go-gather v0.0.1
 	github.com/enterprise-contract/go-gather/metadata v0.0.0-20240523073727-ba2c37023242
 	github.com/enterprise-contract/go-gather/metadata/git v0.0.0-20240523073727-ba2c37023242
 	github.com/go-git/go-git/v5 v5.12.0
