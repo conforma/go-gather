@@ -10,6 +10,8 @@ github.com/enterprise-contract/go-gather/metadata/file v0.0.1 h1:DRhTGKRXFRh/FVn
 github.com/enterprise-contract/go-gather/metadata/file v0.0.1/go.mod h1:4PckwLejZstUEBp2QUAdQYQ0O+h5tijrs48j+7OY4OY=
 github.com/enterprise-contract/go-gather/metadata/file v0.0.2-0.20241015082844-9df651247f12 h1:a2g1SUSyMG+CsljBfwimzof6HZF3jfyDodsV0k3M+Yw=
 github.com/enterprise-contract/go-gather/metadata/file v0.0.2-0.20241015082844-9df651247f12/go.mod h1:PwGPhiuskbcewgVtxIh/Anv8RGgaON/WTWQFRM+Pw4E=
+github.com/enterprise-contract/go-gather/metadata/file v0.0.2-0.20241017130509-3c10d38bb928 h1:Ql/J/vdNyXwWwi/cBQ4yEGef70C+RNmFldXOM1rFMZs=
+github.com/enterprise-contract/go-gather/metadata/file v0.0.2-0.20241017130509-3c10d38bb928/go.mod h1:PwGPhiuskbcewgVtxIh/Anv8RGgaON/WTWQFRM+Pw4E=
 github.com/enterprise-contract/go-gather/saver v0.0.2 h1:+XeeuEzglzBxlTRD0boIqac7v4zI7g2g2es74iVTXgM=
 github.com/enterprise-contract/go-gather/saver v0.0.2/go.mod h1:3f37v+I/EY8me7gaopGly107R7gqibR8UyBA3NgzMbo=
 github.com/enterprise-contract/go-gather/saver/file v0.0.1 h1:rLDMb7AW5kJLqRaKXazZroT8wfqy43tth6O6XLKY0MY=
