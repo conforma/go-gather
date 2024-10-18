@@ -42,3 +42,8 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/stretchr/testify v1.9.0
 )
+
+replace (
+	github.com/enterprise-contract/go-gather/metadata => ../../metadata
+	github.com/enterprise-contract/go-gather/metadata/oci => ../../metadata/oci
+)

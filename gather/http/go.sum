@@ -1,14 +1,6 @@
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/enterprise-contract/go-gather v0.0.3 h1:Qh4CJhOPdMit4Z/BK3rv7S3GkZ5XLzAlAus1eMKLDA4=
-github.com/enterprise-contract/go-gather v0.0.3/go.mod h1:gXqnYRW9uTD06xli3pE+9cwtPVcIdqyPIqBcKQ+kK8I=
-github.com/enterprise-contract/go-gather/metadata v0.0.2 h1:BxPXXZFjX7lrYnlJosPmvISgjF13HpawEtZTDxjnjcQ=
-github.com/enterprise-contract/go-gather/metadata v0.0.2/go.mod h1:m2HxByQBWZyc99HDs/Lqy7QzU9+XQ2tU0X/mzkCPgPw=
-github.com/enterprise-contract/go-gather/metadata/http v0.0.1 h1:ebhT9h93v/Et+5c1t5PJzGj6V2g18elm1VDrQg6y63A=
-github.com/enterprise-contract/go-gather/metadata/http v0.0.1/go.mod h1:VjjTqsJ+sM7MVsVkEFgpcJzY9hur9pIBEMptrVvAwoI=
-github.com/enterprise-contract/go-gather/saver v0.0.2 h1:+XeeuEzglzBxlTRD0boIqac7v4zI7g2g2es74iVTXgM=
-github.com/enterprise-contract/go-gather/saver v0.0.2/go.mod h1:3f37v+I/EY8me7gaopGly107R7gqibR8UyBA3NgzMbo=
 github.com/enterprise-contract/go-gather/saver/file v0.0.1 h1:rLDMb7AW5kJLqRaKXazZroT8wfqy43tth6O6XLKY0MY=
 github.com/enterprise-contract/go-gather/saver/file v0.0.1/go.mod h1:qnNStNDYPJGjJunKANv6jq93ynndcfxmUoeYeBEnZEY=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=

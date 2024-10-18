@@ -11,3 +11,11 @@ require (
 )
 
 require github.com/enterprise-contract/go-gather/saver/file v0.0.1 // indirect
+
+replace (
+	github.com/enterprise-contract/go-gather => ../..
+	github.com/enterprise-contract/go-gather/expander => ../../expander
+	github.com/enterprise-contract/go-gather/metadata => ../../metadata
+	github.com/enterprise-contract/go-gather/metadata/file => ../../metadata/file
+	github.com/enterprise-contract/go-gather/saver => ../../saver
+)

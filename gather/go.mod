@@ -8,7 +8,7 @@ require (
 	github.com/enterprise-contract/go-gather/gather/git v0.0.5
 	github.com/enterprise-contract/go-gather/gather/http v0.0.2
 	github.com/enterprise-contract/go-gather/gather/oci v0.0.4
-	github.com/enterprise-contract/go-gather/metadata v0.0.2
+	github.com/enterprise-contract/go-gather/metadata v0.0.3-0.20241015082844-9df651247f12
 	github.com/enterprise-contract/go-gather/metadata/git v0.0.2
 )
 
@@ -21,10 +21,10 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/enterprise-contract/go-gather/expander v0.0.1 // indirect
-	github.com/enterprise-contract/go-gather/metadata/file v0.0.1 // indirect
+	github.com/enterprise-contract/go-gather/metadata/file v0.0.2-0.20241015082844-9df651247f12 // indirect
 	github.com/enterprise-contract/go-gather/metadata/http v0.0.1 // indirect
 	github.com/enterprise-contract/go-gather/metadata/oci v0.0.3 // indirect
-	github.com/enterprise-contract/go-gather/saver v0.0.1 // indirect
+	github.com/enterprise-contract/go-gather/saver v0.0.2 // indirect
 	github.com/enterprise-contract/go-gather/saver/file v0.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
@@ -62,4 +62,19 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	oras.land/oras-go/v2 v2.5.0 // indirect
+)
+
+replace (
+	github.com/enterprise-contract/go-gather/expander => ../expander
+	github.com/enterprise-contract/go-gather/gather/file => ./file
+	github.com/enterprise-contract/go-gather/gather/git => ./git
+	github.com/enterprise-contract/go-gather/gather/http => ./http
+	github.com/enterprise-contract/go-gather/gather/oci => ./oci
+	github.com/enterprise-contract/go-gather/metadata => ../metadata
+	github.com/enterprise-contract/go-gather/metadata/file => ../metadata/file
+	github.com/enterprise-contract/go-gather/metadata/git => ../metadata/git
+	github.com/enterprise-contract/go-gather/metadata/http => ../metadata/http
+	github.com/enterprise-contract/go-gather/metadata/oci => ../metadata/oci
+	github.com/enterprise-contract/go-gather/saver => ../saver
+	github.com/enterprise-contract/go-gather/saver/file => ../saver/file
 )

@@ -36,3 +36,9 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace (
+	github.com/enterprise-contract/go-gather => ../..
+	github.com/enterprise-contract/go-gather/metadata => ../../metadata
+	github.com/enterprise-contract/go-gather/metadata/git => ../../metadata/git
+)
