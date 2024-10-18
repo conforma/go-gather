@@ -68,7 +68,8 @@ func (m *FileMetadata) Get() map[string]any {
 	}
 }
 
-func (m FileMetadata) GetPinnedURL(u string) (string, error) {
+func (m FileMetadata) GetPinnedURL() (string, error) {
+	u := m.Path
 	if len(u) == 0 {
 		return "", fmt.Errorf("empty file path")
 	}
@@ -86,7 +87,8 @@ func (m *DirectoryMetadata) Get() map[string]any {
 	}
 }
 
-func (m DirectoryMetadata) GetPinnedURL(u string) (string, error) {
+func (m DirectoryMetadata) GetPinnedURL() (string, error) {
+	u := m.Path
 	if len(u) == 0 {
 		return "", fmt.Errorf("empty file path")
 	}

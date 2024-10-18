@@ -155,6 +155,7 @@ func (g *GitGatherer) Gather(ctx context.Context, source, destination string) (m
 	}
 
 	m := &gitMetadata.GitMetadata{
+		URL:          source,
 		LatestCommit: head.Hash().String(),
 	}
 	return m, nil

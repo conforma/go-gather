@@ -22,6 +22,7 @@ import (
 )
 
 type OCIMetadata struct {
+	URL    string
 	Digest string
 }
 
@@ -36,7 +37,8 @@ func (o OCIMetadata) GetDigest() string {
 	return o.Digest
 }
 
-func (o OCIMetadata) GetPinnedURL(u string) (string, error) {
+func (o OCIMetadata) GetPinnedURL() (string, error) {
+	u := o.URL
 	if len(u) == 0 {
 		return "", fmt.Errorf("empty URL")
 	}

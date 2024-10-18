@@ -361,7 +361,7 @@ func TestPinnedUrlRoundtrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pinned, err := m.GetPinnedURL(source)
+	pinned, err := m.GetPinnedURL()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -151,6 +151,7 @@ func (h *HTTPGatherer) Gather(ctx context.Context, source, destination string) (
 
 	// Return the metadata of the downloaded file
 	m := httpMetadata.HTTPMetadata{
+		URL:           source,
 		StatusCode:    resp.StatusCode,
 		ContentLength: resp.ContentLength,
 		Destination:   destination,

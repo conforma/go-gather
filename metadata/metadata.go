@@ -23,5 +23,5 @@ package metadata
 // Metadata is an interface that all metadata types will satisfy.
 type Metadata interface {
 	Get() map[string]any // Example method; adjust according to actual use cases.
-	GetPinnedURL(string) (string, error)
+	GetPinnedURL() (string, error)
 }

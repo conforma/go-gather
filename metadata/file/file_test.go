@@ -108,8 +108,8 @@ func TestFileMetadata_GetPinnedURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := FileMetadata{}
-			gotURL, err := m.GetPinnedURL(tt.url)
+			m := FileMetadata{Path: tt.url}
+			gotURL, err := m.GetPinnedURL()
 			if (err != nil) != tt.expectError {
 				t.Errorf("GetPinnedURL() error = %v, expectError %v", err, tt.expectError)
 				return
@@ -123,35 +123,30 @@ func TestFileMetadata_GetPinnedURL(t *testing.T) {
 func TestFileMetadata_GetPinnedUrl(t *testing.T) {
 	testCases := []struct {
 		name     string
-		url      string
 		metadata metadata.Metadata
 		expected string
 		hasError bool
 	}{
 		{
 			name:     "With no prefix",
-			url:      "/path/to/policy.yaml",
-			metadata: &FileMetadata{},
+			metadata: &FileMetadata{Path: "/path/to/policy.yaml"},
 			expected: "file::/path/to/policy.yaml",
 			hasError: false,
 		},
 		{
 			name:     "With file::",
-			url:      "file::/path/to/policy.yaml",
-			metadata: &FileMetadata{},
+			metadata: &FileMetadata{Path: "file::/path/to/policy.yaml"},
 			expected: "file::/path/to/policy.yaml",
 			hasError: false,
 		},
 		{
 			name:     "With file://",
-			url:      "file:///path/to/policy.yaml",
-			metadata: &FileMetadata{},
+			metadata: &FileMetadata{Path: "file:///path/to/policy.yaml"},
 			expected: "file::/path/to/policy.yaml",
 			hasError: false,
 		},
 		{
 			name:     "With emmpty file path",
-			url:      "",
 			metadata: &FileMetadata{},
 			expected: "",
 			hasError: true,
@@ -163,13 +158,13 @@ func TestFileMetadata_GetPinnedUrl(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel() // Run tests in parallel where possible
 
-			got, err := tc.metadata.GetPinnedURL(tc.url)
+			got, err := tc.metadata.GetPinnedURL()
 			if (err != nil) != tc.hasError {
 				t.Errorf("GetPinnedURL() \nerror = %v, \nexpected error = %v", err, tc.hasError)
 				t.Fatalf("GetPinnedURL() \nerror = %v, \nexpected error = %v", err, tc.hasError)
 			}
 			if got != tc.expected {
-				t.Errorf("GetPinnedURL() = %q\ninput = %q\nexpected = %q\ngot = %q", got, tc.url, tc.expected, got)
+				t.Errorf("GetPinnedURL() = %q\ninput = %#v\nexpected = %q\ngot = %q", got, tc.metadata, tc.expected, got)
 			}
 		})
 	}
@@ -199,8 +194,8 @@ func TestDirectoryMetadata_GetPinnedURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := DirectoryMetadata{}
-			gotURL, err := m.GetPinnedURL(tt.url)
+			m := DirectoryMetadata{Path: tt.url}
+			gotURL, err := m.GetPinnedURL()
 			if tt.expectError && err != nil {
 				if err.Error() != tt.expectedError {
 					t.Errorf("GetPinnedURL() error = %v, expectedError %v", err, tt.expectedError)
@@ -216,35 +211,30 @@ func TestDirectoryMetadata_GetPinnedURL(t *testing.T) {
 func TestDirectoryMetadata_GetPinnedUrl(t *testing.T) {
 	testCases := []struct {
 		name     string
-		url      string
 		metadata metadata.Metadata
 		expected string
 		hasError bool
 	}{
 		{
 			name:     "With no prefix",
-			url:      "/path/to/policy.yaml",
-			metadata: &DirectoryMetadata{},
+			metadata: &DirectoryMetadata{Path: "/path/to/policy.yaml"},
 			expected: "file::/path/to/policy.yaml",
 			hasError: false,
 		},
 		{
 			name:     "With file::",
-			url:      "file::/path/to/policy.yaml",
-			metadata: &DirectoryMetadata{},
+			metadata: &DirectoryMetadata{Path: "file::/path/to/policy.yaml"},
 			expected: "file::/path/to/policy.yaml",
 			hasError: false,
 		},
 		{
 			name:     "With file://",
-			url:      "file:///path/to/policy.yaml",
-			metadata: &DirectoryMetadata{},
+			metadata: &DirectoryMetadata{Path: "file:///path/to/policy.yaml"},
 			expected: "file::/path/to/policy.yaml",
 			hasError: false,
 		},
 		{
 			name:     "With emmpty file path",
-			url:      "",
 			metadata: &DirectoryMetadata{},
 			expected: "",
 			hasError: true,
@@ -256,13 +246,13 @@ func TestDirectoryMetadata_GetPinnedUrl(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel() // Run tests in parallel where possible
 
-			got, err := tc.metadata.GetPinnedURL(tc.url)
+			got, err := tc.metadata.GetPinnedURL()
 			if (err != nil) != tc.hasError {
 				t.Errorf("GetPinnedURL() \nerror = %v, \nexpected error = %v", err, tc.hasError)
 				t.Fatalf("GetPinnedURL() \nerror = %v, \nexpected error = %v", err, tc.hasError)
 			}
 			if got != tc.expected {
-				t.Errorf("GetPinnedURL() = %q\ninput = %q\nexpected = %q\ngot = %q", got, tc.url, tc.expected, got)
+				t.Errorf("GetPinnedURL() = %q\ninput = %#v\nexpected = %q\ngot = %q", got, tc.metadata, tc.expected, got)
 			}
 		})
 	}

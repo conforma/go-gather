@@ -45,14 +45,10 @@ func TestOCIMetadata_GetDigest(t *testing.T) {
 }
 
 func TestGetPinnedUrl(t *testing.T) {
-	goodMetadata := OCIMetadata{
-		Digest: "SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f",
-	}
-	badMetadata := OCIMetadata{}
+	digest := "SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f"
 
 	tests := []struct {
 		name          string
-		url           string
 		expectedURL   string
 		expectError   bool
 		expectedError string
@@ -60,60 +56,55 @@ func TestGetPinnedUrl(t *testing.T) {
 	}{
 		{
 			name:        "valid URL with oci:// scheme",
-			url:         "oci://example.com/org/repo",
 			expectedURL: "oci::example.com/org/repo@SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata:    OCIMetadata{Digest: digest, URL: "oci://example.com/org/repo"},
 		},
 		{
 			name:        "valid URL with oci:: scheme",
-			url:         "oci://example.com/org/repo",
 			expectedURL: "oci::example.com/org/repo@SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata:    OCIMetadata{Digest: digest, URL: "oci://example.com/org/repo"},
 		},
 
 		{
 			name:        "valid URL with oci:// scheme and tag",
-			url:         "oci://example.com/org/repo:latest",
 			expectedURL: "oci::example.com/org/repo:latest@SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata:    OCIMetadata{Digest: digest, URL: "oci://example.com/org/repo:latest"},
 		},
 		{
 			name:        "valid URL with oci:: scheme and tag",
-			url:         "oci://example.com/org/repo:latest",
 			expectedURL: "oci::example.com/org/repo:latest@SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata:    OCIMetadata{Digest: digest, URL: "oci://example.com/org/repo:latest"},
 		},
 		{
 			name:        "valid URL with oci:: scheme, tag, and digest",
-			url:         "oci://example.com/org/repo:latest@SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f",
 			expectedURL: "oci::example.com/org/repo:latest@SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata: OCIMetadata{
+				Digest: digest,
+				URL:    "oci://example.com/org/repo:latest@SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f"},
 		},
 		{
 			name:          "invalid URL",
-			url:           "",
 			expectedURL:   "oci://example.com/org/repo:latest@SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f",
 			expectError:   true,
 			expectedError: "empty URL",
-			metadata:      goodMetadata,
+			metadata:      OCIMetadata{Digest: digest},
 		},
 		{
 			name:          "valid URL with empty metadata",
-			url:           "oci://example.com/org/repo:latest",
 			expectedURL:   "oci://example.com/org/repo:latest@SHA256:fa93b01658e3a5a1686dc3ae55f170d8de487006fb53a28efcd12ab0710a2e5f",
 			expectError:   true,
 			expectedError: "image digest not set",
-			metadata:      badMetadata,
+			metadata:      OCIMetadata{URL: "oci://example.com/org/repo:latest"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.metadata.GetPinnedURL(tt.url)
+			result, err := tt.metadata.GetPinnedURL()
 			if tt.expectError && err != nil {
 				assert.Equal(t, err.Error(), tt.expectedError, fmt.Sprintf("GetPinnedURL() error = %v, expectedError %v", err, tt.expectedError))
 				return
@@ -126,7 +117,6 @@ func TestGetPinnedUrl(t *testing.T) {
 func TestGetPinnedURL(t *testing.T) {
 	testCases := []struct {
 		name     string
-		url      string
 		metadata metadata.Metadata
 		expected string
 		hasError bool
@@ -134,90 +124,90 @@ func TestGetPinnedURL(t *testing.T) {
 		// OCI Metadata Tests
 		{
 			name: "oci:: prefix and repo tag",
-			url:  "oci::registry/policy:latest",
 			metadata: &OCIMetadata{
 				Digest: "sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
+				URL:    "oci::registry/policy:latest",
 			},
 			expected: "oci::registry/policy:latest@sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
 			hasError: false,
 		},
 		{
 			name: "oci:// prefix and repo tag",
-			url:  "oci://registry/org/policy:dev",
 			metadata: &OCIMetadata{
 				Digest: "sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
+				URL:    "oci://registry/org/policy:dev",
 			},
 			expected: "oci::registry/org/policy:dev@sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
 			hasError: false,
 		},
 		{
 			name: "oci:: prefix, path suffix, and repo tag",
-			url:  "oci::registry/policy:main",
 			metadata: &OCIMetadata{
 				Digest: "sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
+				URL:    "oci::registry/policy:main",
 			},
 			expected: "oci::registry/policy:main@sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
 			hasError: false,
 		},
 		{
 			name: "oci:: prefix and path suffix without repo tag",
-			url:  "oci::registry/policy",
 			metadata: &OCIMetadata{
 				Digest: "sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
+				URL:    "oci::registry/policy",
 			},
 			expected: "oci::registry/policy@sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
 			hasError: false,
 		},
 		{
 			name: "no prefix, with repo tag",
-			url:  "registry/policy:latest",
 			metadata: &OCIMetadata{
 				Digest: "sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
+				URL:    "registry/policy:latest",
 			},
 			expected: "oci::registry/policy:latest@sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
 			hasError: false,
 		},
 		{
 			name: "no prefix, without repo tag",
-			url:  "registry/policy",
 			metadata: &OCIMetadata{
 				Digest: "sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
+				URL:    "registry/policy",
 			},
 			expected: "oci::registry/policy@sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
 			hasError: false,
 		},
 		{
 			name: "oci:: prefix, with path suffix, without tag",
-			url:  "oci://registry/policy",
 			metadata: &OCIMetadata{
 				Digest: "sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
+				URL:    "oci://registry/policy",
 			},
 			expected: "oci::registry/policy@sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
 			hasError: false,
 		},
 		{
 			name: "oci:// prefix, with repo tag, with existing digest",
-			url:  "oci://registry/policy:bar@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			metadata: &OCIMetadata{
 				Digest: "sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
+				URL:    "oci://registry/policy:bar@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			},
 			expected: "oci::registry/policy:bar@sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
 			hasError: false,
 		},
 		{
 			name: "oci:: prefix, with path suffix, with existing digest",
-			url:  "oci::registry/policy:baz@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			metadata: &OCIMetadata{
 				Digest: "sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
+				URL:    "oci::registry/policy:baz@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			},
 			expected: "oci::registry/policy:baz@sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
 			hasError: false,
 		},
 		{
 			name: "oci:: prefix, with path suffix, without tag",
-			url:  "oci::registry/policy",
 			metadata: &OCIMetadata{
 				Digest: "sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
+				URL:    "oci::registry/policy",
 			},
 			expected: "oci::registry/policy@sha256:c04c1f5ea75e869e2da7150c927d0c8649790b2e3c82e6ff317d4cfa068c1649",
 			hasError: false,
@@ -229,13 +219,13 @@ func TestGetPinnedURL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel() // Run tests in parallel where possible
 
-			got, err := tc.metadata.GetPinnedURL(tc.url)
+			got, err := tc.metadata.GetPinnedURL()
 			if (err != nil) != tc.hasError {
 				t.Errorf("GetPinnedURL() \nerror = %v, \nexpected error = %v", err, tc.hasError)
 				t.Fatalf("GetPinnedURL() \nerror = %v, \nexpected error = %v", err, tc.hasError)
 			}
 			if got != tc.expected {
-				t.Errorf("GetPinnedURL() = %q\ninput = %q\nexpected = %q\ngot = %q", got, tc.url, tc.expected, got)
+				t.Errorf("GetPinnedURL() = %q\ninput = %#v\nexpected = %q\ngot = %q", got, tc.metadata, tc.expected, got)
 			}
 		})
 	}

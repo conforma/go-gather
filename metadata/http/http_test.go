@@ -70,8 +70,8 @@ func TestHTTPMetadata_GetPinnedURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := HTTPMetadata{}
-			gotURL, err := m.GetPinnedURL(tt.url)
+			m := HTTPMetadata{URL: tt.url}
+			gotURL, err := m.GetPinnedURL()
 			if (err != nil) != tt.expectError {
 				t.Errorf("GetPinnedURL() error = %v, expectError %v", err, tt.expectError)
 				return

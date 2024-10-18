@@ -51,14 +51,10 @@ func TestGitMetadata_GetLatestCommit(t *testing.T) {
 }
 
 func TestGetPinnedUrl(t *testing.T) {
-	goodMetadata := GitMetadata{
-		LatestCommit: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-	}
-	badMetadata := GitMetadata{}
+	commit := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 	tests := []struct {
 		name          string
-		url           string
 		expectedURL   string
 		expectError   bool
 		expectedError string
@@ -66,66 +62,58 @@ func TestGetPinnedUrl(t *testing.T) {
 	}{
 		{
 			name:        "valid URL with git:// scheme",
-			url:         "git://example.com/org/repo.git",
 			expectedURL: "git::example.com/org/repo.git?ref=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata:    GitMetadata{LatestCommit: commit, URL: "git://example.com/org/repo.git"},
 		},
 		{
 			name:        "valid URL with git:: scheme",
-			url:         "git::example.com/org/repo.git",
 			expectedURL: "git::example.com/org/repo.git?ref=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata:    GitMetadata{LatestCommit: commit, URL: "git::example.com/org/repo.git"},
 		},
 		{
 			name:        "valid URL with git:: scheme",
-			url:         "git::git://example.com/org/repo.git",
 			expectedURL: "git::example.com/org/repo.git?ref=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata:    GitMetadata{LatestCommit: commit, URL: "git::git://example.com/org/repo.git"},
 		},
 		{
 			name:        "valid URL with https:// scheme",
-			url:         "https://example.com/org/repo.git",
 			expectedURL: "git::example.com/org/repo.git?ref=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata:    GitMetadata{LatestCommit: commit, URL: "https://example.com/org/repo.git"},
 		},
 		{
 			name:        "valid URL without .git extension",
-			url:         "git://example.com/org/repo",
 			expectedURL: "git::example.com/org/repo?ref=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata:    GitMetadata{LatestCommit: commit, URL: "git://example.com/org/repo"},
 		},
 		{
 			name:        "valid git@ URL",
-			url:         "git@example.com:org/repo.git",
 			expectedURL: "git::example.com/org/repo.git?ref=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			expectError: false,
-			metadata:    goodMetadata,
+			metadata:    GitMetadata{LatestCommit: commit, URL: "git@example.com:org/repo.git"},
 		},
 		{
 			name:          "invalid URL",
-			url:           "",
 			expectedURL:   "",
 			expectError:   true,
 			expectedError: "empty URL",
-			metadata:      goodMetadata,
+			metadata:      GitMetadata{LatestCommit: commit},
 		},
 		{
 			name:          "valid URL with empty metadata",
-			url:           "git://example.com/org/repo.git",
 			expectedURL:   "git::example.com/org/repo.git?ref=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			expectError:   true,
 			expectedError: "latest commit not set",
-			metadata:      badMetadata,
+			metadata:      GitMetadata{URL: "git://example.com/org/repo.git"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.metadata.GetPinnedURL(tt.url)
+			result, err := tt.metadata.GetPinnedURL()
 			if tt.expectError && err != nil {
 				assert.Equal(t, err.Error(), tt.expectedError, fmt.Sprintf("GetPinnedURL() error = %v, expectedError %v", err, tt.expectedError))
 				return
@@ -138,7 +126,6 @@ func TestGetPinnedUrl(t *testing.T) {
 func TestGetPinnedURL(t *testing.T) {
 	testCases := []struct {
 		name     string
-		url      string
 		metadata metadata.Metadata
 		expected string
 		hasError bool
@@ -146,45 +133,45 @@ func TestGetPinnedURL(t *testing.T) {
 		// Git Metadata Tests
 		{
 			name: "Git URL with git:: prefix and ref",
-			url:  "git::https://test-url.git?ref=abc1234",
 			metadata: &GitMetadata{
 				LatestCommit: "def456",
+				URL:          "git::https://test-url.git?ref=abc1234",
 			},
 			expected: "git::test-url.git?ref=def456",
 			hasError: false,
 		},
 		{
 			name: "Git URL without git:: prefix",
-			url:  "https://test-url.git?ref=abc1234",
 			metadata: &GitMetadata{
 				LatestCommit: "def456",
+				URL:          "https://test-url.git?ref=abc1234",
 			},
 			expected: "git::test-url.git?ref=def456",
 			hasError: false,
 		},
 		{
 			name: "Git URL without git:: prefix and @git",
-			url:  "git@test-url.com:org/repo.git?ref=abc1234",
 			metadata: &GitMetadata{
 				LatestCommit: "def456",
+				URL:          "git@test-url.com:org/repo.git?ref=abc1234",
 			},
 			expected: "git::test-url.com/org/repo.git?ref=def456",
 			hasError: false,
 		},
 		{
 			name: "Git URL with git:: prefix and path suffix",
-			url:  "git::https://test-url.git//path/to/file?ref=abc1234",
 			metadata: &GitMetadata{
 				LatestCommit: "ghi789",
+				URL:          "git::https://test-url.git//path/to/file?ref=abc1234",
 			},
 			expected: "git::test-url.git//path/to/file?ref=ghi789",
 			hasError: false,
 		},
 		{
 			name: "Git URL with git:: prefix, path suffix, and existing SHA (should ignore SHA)",
-			url:  "git::https://test-url.git//path/to/file?ref=abc1234",
 			metadata: &GitMetadata{
 				LatestCommit: "ghi789",
+				URL:          "git::https://test-url.git//path/to/file?ref=abc1234",
 			},
 			expected: "git::test-url.git//path/to/file?ref=ghi789",
 			hasError: false,
@@ -196,13 +183,13 @@ func TestGetPinnedURL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel() // Run tests in parallel where possible
 
-			got, err := tc.metadata.GetPinnedURL(tc.url)
+			got, err := tc.metadata.GetPinnedURL()
 			if (err != nil) != tc.hasError {
 				t.Errorf("GetPinnedURL() \nerror = %v, \nexpected error = %v", err, tc.hasError)
 				t.Fatalf("GetPinnedURL() \nerror = %v, \nexpected error = %v", err, tc.hasError)
 			}
 			if got != tc.expected {
-				t.Errorf("GetPinnedURL() = %q\ninput = %q\nexpected = %q\ngot = %q", got, tc.url, tc.expected, got)
+				t.Errorf("GetPinnedURL() = %q\ninput = %#v\nexpected = %q\ngot = %q", got, tc.metadata, tc.expected, got)
 			}
 		})
 	}

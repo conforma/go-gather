@@ -97,7 +97,7 @@ func (f *OCIGatherer) Gather(ctx context.Context, source, destination string) (m
 		return nil, fmt.Errorf("pulling policy: %w", err)
 	}
 
-	return &oci.OCIMetadata{Digest: a.Digest.String()}, nil
+	return &oci.OCIMetadata{URL: source, Digest: a.Digest.String()}, nil
 }
 
 func ociURLParse(source string) string {

@@ -22,6 +22,7 @@ import (
 )
 
 type HTTPMetadata struct {
+	URL           string
 	StatusCode    int
 	ContentLength int64
 	Destination   string
@@ -37,7 +38,8 @@ func (m HTTPMetadata) Get() map[string]any {
 	}
 }
 
-func (m HTTPMetadata) GetPinnedURL(u string) (string, error) {
+func (m HTTPMetadata) GetPinnedURL() (string, error) {
+	u := m.URL
 	if len(u) == 0 {
 		return "", fmt.Errorf("empty URL")
 	}
