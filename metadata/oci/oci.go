@@ -54,3 +54,7 @@ func (o OCIMetadata) GetPinnedURL() (string, error) {
 	}
 	return fmt.Sprintf("oci::%s@%s", u, o.Digest), nil
 }
+
+func (o OCIMetadata) RemoteRef() string {
+	return ""
+}

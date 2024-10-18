@@ -79,6 +79,10 @@ func (m FileMetadata) GetPinnedURL() (string, error) {
 	return "file::" + u, nil
 }
 
+func (m FileMetadata) RemoteRef() string {
+	return ""
+}
+
 func (m *DirectoryMetadata) Get() map[string]any {
 	return map[string]any{
 		"size":      m.Size,
@@ -96,4 +100,8 @@ func (m DirectoryMetadata) GetPinnedURL() (string, error) {
 		u = strings.TrimPrefix(u, scheme)
 	}
 	return "file::" + u, nil
+}
+
+func (m DirectoryMetadata) RemoteRef() string {
+	return ""
 }

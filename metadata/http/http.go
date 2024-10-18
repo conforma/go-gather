@@ -48,3 +48,7 @@ func (m HTTPMetadata) GetPinnedURL() (string, error) {
 	}
 	return "http::" + u, nil
 }
+
+func (m HTTPMetadata) RemoteRef() string {
+	return ""
+}

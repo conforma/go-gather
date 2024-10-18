@@ -34,6 +34,7 @@ const (
 	HTTPURI
 	FileURI
 	OCIURI
+	K8SPURI
 	Unknown
 )
 
@@ -41,7 +42,7 @@ var getHomeDir = os.UserHomeDir
 
 // String returns the string representation of the URLType
 func (t URIType) String() string {
-	return [...]string{"GitURI", "HTTPURI", "FileURI", "OCIURI", "Unknown"}[t]
+	return [...]string{"GitURI", "HTTPURI", "FileURI", "OCIURI", "K8SPURI", "Unknown"}[t]
 }
 
 // ExpandTilde expands a leading tilde in the file path to the user's home directory
@@ -73,6 +74,10 @@ func ClassifyURI(input string) (URIType, error) {
 		return OCIURI, nil
 	}
 
+	if strings.HasPrefix(input, "k8s*::") {
+		return K8SPURI, nil
+	}
+
 	// Check for known git hosting services
 	if strings.HasPrefix(input, "github.com") || strings.HasPrefix(input, "gitlab.com") {
 		return GitURI, nil
@@ -92,6 +97,9 @@ func ClassifyURI(input string) (URIType, error) {
 			return FileURI, nil
 		case "oci":
 			return OCIURI, nil
+		// TODO: Not sure if this actually reachable when parsing as a URL.
+		case "k8s*":
+			return K8SPURI, nil
 		}
 	}
 

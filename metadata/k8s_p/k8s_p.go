@@ -14,15 +14,23 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package metadata provides functionality for generating metadata.
-// It includes a Metadata interface that contains a Get method
-// for describing metadata.
+package k8s_p
 
-package metadata
+type K8SPMetadata struct {
+	URL string
+	Ref string
+}
 
-// Metadata is an interface that all metadata types will satisfy.
-type Metadata interface {
-	Get() map[string]any // Example method; adjust according to actual use cases.
-	GetPinnedURL() (string, error)
-	RemoteRef() string
+func (o K8SPMetadata) Get() map[string]any {
+	// TODO: Any useful info here?
+	return map[string]any{}
+}
+
+func (o K8SPMetadata) GetPinnedURL() (string, error) {
+	// TODO: meh?
+	return o.URL, nil
+}
+
+func (o K8SPMetadata) RemoteRef() string {
+	return o.Ref
 }

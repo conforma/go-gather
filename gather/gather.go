@@ -28,6 +28,7 @@ import (
 	"github.com/enterprise-contract/go-gather/gather/file"
 	"github.com/enterprise-contract/go-gather/gather/git"
 	"github.com/enterprise-contract/go-gather/gather/http"
+	"github.com/enterprise-contract/go-gather/gather/k8s_p"
 	"github.com/enterprise-contract/go-gather/gather/oci"
 	"github.com/enterprise-contract/go-gather/metadata"
 )
@@ -43,18 +44,33 @@ var protocolHandlers = map[string]Gatherer{
 	"GitURI":  &git.GitGatherer{},
 	"HTTPURI": &http.HTTPGatherer{},
 	"OCIURI":  &oci.OCIGatherer{},
+	"K8SPURI": &k8s_p.K8SPGatherer{},
 }
+
+const maxRemoteRefLevels = 3
 
 // Gather determines the protocol from the source URI and uses the appropriate Gatherer to perform the operation.
 // It returns the gathered metadata and an error, if any.
 func Gather(ctx context.Context, source, destination string) (metadata.Metadata, error) {
-	srcProtocol, err := gogather.ClassifyURI(source)
-	if err != nil {
-		return nil, fmt.Errorf("failed to classify source URI: %w", err)
+	for i := 0; i < maxRemoteRefLevels; i++ {
+		srcProtocol, err := gogather.ClassifyURI(source)
+		if err != nil {
+			return nil, fmt.Errorf("failed to classify source URI: %w", err)
+		}
+
+		if gatherer, ok := protocolHandlers[srcProtocol.String()]; ok {
+			m, err := gatherer.Gather(ctx, source, destination)
+			if err != nil {
+				return nil, fmt.Errorf("gathering source: %w", err)
+			}
+			if m.RemoteRef() != "" {
+				source = m.RemoteRef()
+				continue
+			}
+			return m, nil
+		}
+		return nil, fmt.Errorf("unsupported source protocol: %s", srcProtocol)
 	}
 
-	if gatherer, ok := protocolHandlers[srcProtocol.String()]; ok {
-		return gatherer.Gather(ctx, source, destination)
-	}
-	return nil, fmt.Errorf("unsupported source protocol: %s", srcProtocol)
+	return nil, fmt.Errorf("maximum remote ref, %d, level exceeded", maxRemoteRefLevels)
 }
