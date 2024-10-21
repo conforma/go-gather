@@ -24,5 +24,4 @@ package metadata
 type Metadata interface {
 	Get() map[string]any // Example method; adjust according to actual use cases.
 	GetPinnedURL() (string, error)
-	RemoteRef() string
 }

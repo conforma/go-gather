@@ -21,14 +21,15 @@
 package gather
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"text/template"
 
 	gogather "github.com/enterprise-contract/go-gather"
 	"github.com/enterprise-contract/go-gather/gather/file"
 	"github.com/enterprise-contract/go-gather/gather/git"
 	"github.com/enterprise-contract/go-gather/gather/http"
-	"github.com/enterprise-contract/go-gather/gather/k8s_p"
 	"github.com/enterprise-contract/go-gather/gather/oci"
 	"github.com/enterprise-contract/go-gather/metadata"
 )
@@ -44,33 +45,63 @@ var protocolHandlers = map[string]Gatherer{
 	"GitURI":  &git.GitGatherer{},
 	"HTTPURI": &http.HTTPGatherer{},
 	"OCIURI":  &oci.OCIGatherer{},
-	"K8SPURI": &k8s_p.K8SPGatherer{},
 }
-
-const maxRemoteRefLevels = 3
 
 // Gather determines the protocol from the source URI and uses the appropriate Gatherer to perform the operation.
 // It returns the gathered metadata and an error, if any.
-func Gather(ctx context.Context, source, destination string) (metadata.Metadata, error) {
-	for i := 0; i < maxRemoteRefLevels; i++ {
-		srcProtocol, err := gogather.ClassifyURI(source)
-		if err != nil {
-			return nil, fmt.Errorf("failed to classify source URI: %w", err)
-		}
-
-		if gatherer, ok := protocolHandlers[srcProtocol.String()]; ok {
-			m, err := gatherer.Gather(ctx, source, destination)
-			if err != nil {
-				return nil, fmt.Errorf("gathering source: %w", err)
-			}
-			if m.RemoteRef() != "" {
-				source = m.RemoteRef()
-				continue
-			}
-			return m, nil
-		}
-		return nil, fmt.Errorf("unsupported source protocol: %s", srcProtocol)
+func Gather(ctx context.Context, unresolvedSource, destination string) (metadata.Metadata, error) {
+	source, err := resolveSource(ctx, unresolvedSource)
+	if err != nil {
+		return nil, fmt.Errorf("resolving source %q: %w", unresolvedSource, err)
 	}
 
-	return nil, fmt.Errorf("maximum remote ref, %d, level exceeded", maxRemoteRefLevels)
+	srcProtocol, err := gogather.ClassifyURI(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to classify source URI: %w", err)
+	}
+
+	if gatherer, ok := protocolHandlers[srcProtocol.String()]; ok {
+		return gatherer.Gather(ctx, source, destination)
+	}
+	return nil, fmt.Errorf("unsupported source protocol: %s", srcProtocol)
+
+}
+
+func resolveSource(ctx context.Context, unresolved string) (string, error) {
+	funcs := template.FuncMap{}
+	for name, resolver := range resolvers {
+		resolver := resolver
+		funcs[name] = func(raw string) (string, error) {
+			return resolver.Resolve(ctx, raw)
+		}
+	}
+
+	t, err := template.New("go-gather").Funcs(funcs).Parse(unresolved)
+	if err != nil {
+		return "", fmt.Errorf("creating resolver template: %w", err)
+	}
+	var resolved bytes.Buffer
+	if err := t.Execute(&resolved, nil); err != nil {
+		return "", fmt.Errorf("executing resolver template: %w", err)
+	}
+
+	return resolved.String(), nil
+}
+
+type Resolver interface {
+	Resolve(context.Context, string) (string, error)
+}
+
+var resolvers map[string]Resolver
+
+func RegisterResolver(name string, resolver Resolver) error {
+	if resolvers == nil {
+		resolvers = map[string]Resolver{}
+	}
+	if _, found := resolvers[name]; found {
+		return fmt.Errorf("resolver named %q already registered", name)
+	}
+
+	resolvers[name] = resolver
+	return nil
 }

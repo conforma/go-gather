@@ -73,7 +73,3 @@ func (m GitMetadata) GetPinnedURL() (string, error) {
 	}
 	return "git::" + strings.SplitN(u, "?ref=", 2)[0] + "?ref=" + m.LatestCommit, nil
 }
-
-func (m GitMetadata) RemoteRef() string {
-	return ""
-}
