@@ -7,7 +7,7 @@ require (
 	github.com/go-git/go-git/v5 v5.13.2
 	github.com/google/safearchive v0.0.0-20241025131057-f7ce9d7b6f9c
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0
+	github.com/opencontainers/image-spec v1.1.1
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	oras.land/oras-go/v2 v2.5.0
