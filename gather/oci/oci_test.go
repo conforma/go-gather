@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/stretchr/testify/assert"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/memory"
 )
@@ -209,6 +211,22 @@ func TestOCIGatherer_Gather_ReplaceLocalhost(t *testing.T) {
 	if !strings.Contains(gotRef, "127.0.0.1") {
 		t.Errorf("expected reference to contain 127.0.0.1, got %s", gotRef)
 	}
+}
+
+func TestOCIGatherer_Gather_SetClientTransport(t *testing.T) {
+	expectedMaxIdleConns := 200
+	g := &OCIGatherer{}
+	customTransport := &http.Transport{
+		DisableKeepAlives: true,
+		MaxIdleConns:    expectedMaxIdleConns,
+	}
+
+	// Set a custom transport
+	g.SetClientTransport(customTransport)
+
+	actualMaxIdleConns := g.Transport.(*http.Transport).MaxIdleConns
+	//ensure that we have the same transport
+	assert.Equal(t, actualMaxIdleConns, expectedMaxIdleConns, fmt.Sprintf("expected maxIdleConss to be %v, got %v", expectedMaxIdleConns, actualMaxIdleConns))
 }
 
 // pushTestArtifact stores data in a memory.Store under a final reference (e.g., "localhost:5000/my-repo:latest").
