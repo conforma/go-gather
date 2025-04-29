@@ -37,6 +37,7 @@ import (
 
 type OCIGatherer struct {
 	OCIMetadata
+	Transport http.RoundTripper
 }
 
 type OCIMetadata struct {
@@ -45,8 +46,6 @@ type OCIMetadata struct {
 	Timestamp string
 }
 
-var Transport http.RoundTripper = http.DefaultTransport
-
 var orasCopy = oras.Copy
 
 func (o *OCIGatherer) Gather(ctx context.Context, source, dst string) (metadata.Metadata, error) {
@@ -54,6 +53,11 @@ func (o *OCIGatherer) Gather(ctx context.Context, source, dst string) (metadata.
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
+	}
+
+	// If we haven't set a custom transport with SetClientTransport(), use the default
+	if o.Transport == nil {
+		o.Transport = http.DefaultTransport
 	}
 
 	if strings.Contains(source, "localhost") {
@@ -82,7 +86,7 @@ func (o *OCIGatherer) Gather(ctx context.Context, source, dst string) (metadata.
 	}
 
 	// Setup the client for the repository
-	if err := r.SetupClient(src, Transport); err != nil {
+	if err := r.SetupClient(src, o.Transport); err != nil {
 		return nil, fmt.Errorf("failed to setup repository client: %w", err)
 	}
 
@@ -120,6 +124,10 @@ func (o *OCIGatherer) Matcher(uri string) bool {
 	}
 	// Check if the input matches any known OCI registry
 	return containsOCIRegistry(uri)
+}
+
+func (o *OCIGatherer) SetClientTransport(t http.RoundTripper) {
+	o.Transport = t
 }
 
 func (o OCIMetadata) Get() interface{} {
