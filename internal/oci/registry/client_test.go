@@ -17,10 +17,14 @@
 package registry
 
 import (
+	"fmt"
+	"net/http"
+	"reflect"
 	"strconv"
 	"testing"
 
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
 )
@@ -109,4 +113,22 @@ func TestRepositoryPlainHTTP(t *testing.T) {
 			}
 		})
 	}
+}
+
+func getClientTransport(r *remote.Repository) remote.Client {
+	return r.Client
+}
+
+func TestOCIGatherer_Gather_SetClientTransport(t *testing.T) {
+	r := &remote.Repository{}
+
+	customTransport := &http.Transport{
+		MaxIdleConns:    100,
+	}
+	// Set a custom transport
+	SetupClient(r, customTransport)
+	client := getClientTransport(r)
+	fmt.Printf("\n\nrepository: %v\n\n\n", reflect.TypeOf(client))
+	//ensure that we have the same transport
+	assert.Equal(t, client, customTransport, fmt.Sprintf("expected Transport to be, got %v", reflect.TypeOf(customTransport)))
 }
