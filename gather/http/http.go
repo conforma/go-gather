@@ -31,9 +31,6 @@ import (
 	"github.com/conforma/go-gather/internal/helpers"
 	"github.com/conforma/go-gather/metadata"
 )
-
-var Transport http.RoundTripper = http.DefaultTransport
-
 type HTTPGatherer struct {
 	HTTPMetadata
 	Client http.Client
@@ -104,9 +101,6 @@ func (h *HTTPGatherer) Gather(ctx context.Context, rawSource, dst string) (metad
 	// Set the User-Agent header
 	req.Header.Set("User-Agent", "Go-Gather")
 
-	// Set the transport
-	h.Client.Transport = Transport
-
 	// Perform the HTTP request
 	resp, err := h.Client.Do(req)
 	if err != nil {
@@ -152,6 +146,10 @@ func (h *HTTPGatherer) Matcher(uri string) bool {
 		}
 	}
 	return false
+}
+
+func (h *HTTPGatherer) SetClientTransport(transport http.RoundTripper) {
+	h.Client.Transport = transport
 }
 
 func (h HTTPMetadata) Get() interface{} {
