@@ -11,8 +11,8 @@
   "vulnerabilityAlerts": {
     "enabled": true
   },
-  "timezone": "American/New_York",
-  "schedule": ["0-59 7-15 * * 1-5"],
+  "timezone": "America/New_York",
+  "schedule": ["* 7-15 * * 1-5"],
   "baseBranches": ["main"],
   "packageRules": [
     { "matchManagers": ["gomod"], 
