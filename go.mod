@@ -15,7 +15,7 @@ require (
 	oras.land/oras-go/v2 v2.6.0
 )
 
-require github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+require github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
