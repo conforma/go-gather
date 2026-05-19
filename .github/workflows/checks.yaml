@@ -28,6 +28,7 @@ name: Checks
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
 
@@ -53,6 +54,14 @@ jobs:
 
       - name: Test
         run: make test
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          use_oidc: true
+          flags: unit-tests
+          files: ./coverage-unit.out
+          fail_ci_if_error: false
 
       - name: Lint
         env:
