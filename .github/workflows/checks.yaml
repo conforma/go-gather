@@ -33,6 +33,9 @@ jobs:
 
   Test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
@@ -53,6 +56,14 @@ jobs:
 
       - name: Test
         run: make test
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          use_oidc: true
+          flags: unit-tests
+          files: ./coverage-unit.out
+          fail_ci_if_error: false
 
       - name: Lint
         env:
