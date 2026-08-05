@@ -161,6 +161,38 @@ func TestTarExpander_Expand_InvalidSource(t *testing.T) {
 	}
 }
 
+func TestTarExpander_Expand_PathTraversal(t *testing.T) {
+	tarExpander := &TarExpander{}
+
+	tempDir := t.TempDir()
+	srcFile := filepath.Join(tempDir, "evil.tar")
+	dstDir := filepath.Join(tempDir, "output")
+
+	// safearchive sanitizes "../" prefixes, so the entry is extracted
+	// with the traversal components stripped. IsPathContained provides
+	// defense-in-depth if safearchive is ever bypassed.
+	err := createTarFile(srcFile, "../../../etc/passwd", "root:x:0:0:root:/root:/bin/bash")
+	if err != nil {
+		t.Fatalf("failed to create tar file: %v", err)
+	}
+
+	ctx := context.Background()
+	err = tarExpander.Expand(ctx, srcFile, dstDir, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	escaped := filepath.Join(tempDir, "etc", "passwd")
+	if _, statErr := os.Stat(escaped); statErr == nil {
+		t.Fatal("file should not have been written outside destination directory")
+	}
+
+	sanitized := filepath.Join(dstDir, "etc", "passwd")
+	if _, statErr := os.Stat(sanitized); os.IsNotExist(statErr) {
+		t.Fatal("safearchive should have sanitized the path and extracted the file inside dst")
+	}
+}
+
 // createTarFile creates a simple .tar with one file.
 func createTarFile(filePath string, fileName string, content string) error {
 	f, err := os.Create(filePath)
