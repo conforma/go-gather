@@ -30,7 +30,15 @@ import (
 // the cleaned path starts with the cleaned root followed by a path
 // separator. Note: this is a lexical check and does not resolve symlinks.
 func IsPathContained(path, root string) bool {
-	return strings.HasPrefix(filepath.Clean(path), filepath.Clean(root)+string(os.PathSeparator))
+	cleanPath := filepath.Clean(path)
+	cleanRoot := filepath.Clean(root)
+	if cleanPath == cleanRoot {
+		return false
+	}
+	if cleanRoot == string(os.PathSeparator) {
+		return strings.HasPrefix(cleanPath, cleanRoot)
+	}
+	return strings.HasPrefix(cleanPath, cleanRoot+string(os.PathSeparator))
 }
 
 // CopyDir recursively copies the contents of the source directory (src)

@@ -338,6 +338,8 @@ func TestIsPathContained(t *testing.T) {
 		{"uncleaned path", "/tmp/repo/./subdir", "/tmp/repo", true},
 		{"dot-dot in path", "/tmp/repo/a/../b", "/tmp/repo", true},
 		{"dot-dot escaping via clean", "/tmp/repo/../etc", "/tmp/repo", false},
+		{"filesystem root child", "/child", "/", true},
+		{"filesystem root itself", "/", "/", false},
 	}
 
 	for _, tt := range tests {
