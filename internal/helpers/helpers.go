@@ -25,6 +25,22 @@ import (
 	"strings"
 )
 
+// IsPathContained reports whether path is contained within root after
+// cleaning both paths. It prevents path traversal attacks by ensuring
+// the cleaned path starts with the cleaned root followed by a path
+// separator. Note: this is a lexical check and does not resolve symlinks.
+func IsPathContained(path, root string) bool {
+	cleanPath := filepath.Clean(path)
+	cleanRoot := filepath.Clean(root)
+	if cleanPath == cleanRoot {
+		return false
+	}
+	if cleanRoot == string(os.PathSeparator) {
+		return strings.HasPrefix(cleanPath, cleanRoot)
+	}
+	return strings.HasPrefix(cleanPath, cleanRoot+string(os.PathSeparator))
+}
+
 // CopyDir recursively copies the contents of the source directory (src)
 // into the destination directory (dst). If dst does not exist, it will be created
 // with the same permission bits as src. Subdirectories and files will be copied

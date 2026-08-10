@@ -175,7 +175,7 @@ func untar(input io.Reader, dst, src string, fileSizeLimit int64, filesLimit int
 
 		// Construct the file path safely to prevent Zip Slip
 		fPath := filepath.Join(dst, header.Name) // #nosec G305 we're checking the path below
-		if !strings.HasPrefix(filepath.Clean(fPath), filepath.Clean(dst)+string(os.PathSeparator)) {
+		if !helpers.IsPathContained(fPath, dst) {
 			return fmt.Errorf("illegal file path: %s", fPath)
 		}
 

@@ -152,6 +152,39 @@ func TestZipExpander_Expand_InvalidSource(t *testing.T) {
 	}
 }
 
+func TestZipExpander_Expand_PathTraversal(t *testing.T) {
+	z := &customzip.ZipExpander{}
+
+	tempDir := t.TempDir()
+	srcZip := filepath.Join(tempDir, "evil.zip")
+	dstDir := filepath.Join(tempDir, "output")
+
+	// safearchive sanitizes "../" prefixes, so the entry is extracted
+	// with the traversal components stripped. IsPathContained provides
+	// defense-in-depth if safearchive is ever bypassed.
+	if err := createZipFile(srcZip, []zipTestFile{
+		{Name: "../../../etc/passwd", Content: "root:x:0:0:root:/root:/bin/bash"},
+	}); err != nil {
+		t.Fatalf("failed to create zip file: %v", err)
+	}
+
+	ctx := context.Background()
+	err := z.Expand(ctx, srcZip, dstDir, 0755)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	escaped := filepath.Join(tempDir, "etc", "passwd")
+	if _, statErr := os.Stat(escaped); statErr == nil {
+		t.Fatal("file should not have been written outside destination directory")
+	}
+
+	sanitized := filepath.Join(dstDir, "etc", "passwd")
+	if _, statErr := os.Stat(sanitized); os.IsNotExist(statErr) {
+		t.Fatal("safearchive should have sanitized the path and extracted the file inside dst")
+	}
+}
+
 // zipTestFile is a simple struct for creating in-test ZIP files.
 type zipTestFile struct {
 	Name    string

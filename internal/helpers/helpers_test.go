@@ -321,6 +321,39 @@ func TestGetDirectorySize_ExpandPathError(t *testing.T) {
 	}
 }
 
+func TestIsPathContained(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		root string
+		want bool
+	}{
+		{"child of root", "/tmp/repo/subdir", "/tmp/repo", true},
+		{"nested child", "/tmp/repo/a/b/c", "/tmp/repo", true},
+		{"dot-dot escapes", "/tmp/etc", "/tmp/repo", false},
+		{"partial name match", "/tmp/repoextra/file", "/tmp/repo", false},
+		{"root itself", "/tmp/repo", "/tmp/repo", false},
+		{"uncleaned path", "/tmp/repo/./subdir", "/tmp/repo", true},
+		{"dot-dot in path", "/tmp/repo/a/../b", "/tmp/repo", true},
+		{"dot-dot escaping via clean", "/tmp/repo/../etc", "/tmp/repo", false},
+		{"filesystem root child", "/child", "/", true},
+		{"filesystem root itself", "/", "/", false},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := IsPathContained(tt.path, tt.root)
+			if got != tt.want {
+				t.Errorf("IsPathContained(%q, %q) = %v, want %v", tt.path, tt.root, got, tt.want)
+			}
+		})
+	}
+}
+
 // Test type checks: These are optional if you want to confirm function signatures haven't changed
 func TestHelpersFunctionsAreExpectedTypes(t *testing.T) {
 	var _ func(string, string) error = CopyDir

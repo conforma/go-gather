@@ -73,7 +73,7 @@ func (z *ZipExpander) Expand(ctx context.Context, src, dst string, umask os.File
 		// Construct full file path. safearchive prevents Zip Slip.
 		filePath := filepath.Join(dst, f.Name) // nolint:gosec
 
-		if !strings.HasPrefix(filePath, filepath.Clean(dst)+string(os.PathSeparator)) {
+		if !helpers.IsPathContained(filePath, dst) {
 			return fmt.Errorf("illegal file path: %s", filePath)
 		}
 

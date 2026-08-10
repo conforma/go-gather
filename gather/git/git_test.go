@@ -103,9 +103,16 @@ func initLocalGitRepo(t *testing.T, repoDir string) (string, string) {
 	}
 
 	readmePath := filepath.Join(repoDir, "README.md")
-	content := []byte("# Test Repo\n")
-	if err := os.WriteFile(readmePath, content, 0600); err != nil {
+	if err := os.WriteFile(readmePath, []byte("# Test Repo\n"), 0600); err != nil {
 		t.Fatalf("failed to write file in local repo: %v", err)
+	}
+
+	policiesDir := filepath.Join(repoDir, "policies")
+	if err := os.MkdirAll(policiesDir, 0755); err != nil {
+		t.Fatalf("failed to create policies subdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(policiesDir, "policy.rego"), []byte("package main\n"), 0600); err != nil {
+		t.Fatalf("failed to write policy file: %v", err)
 	}
 
 	w, err := repo.Worktree()
@@ -114,6 +121,9 @@ func initLocalGitRepo(t *testing.T, repoDir string) (string, string) {
 	}
 	if _, err = w.Add("README.md"); err != nil {
 		t.Fatalf("failed to add README.md to index: %v", err)
+	}
+	if _, err = w.Add("policies/policy.rego"); err != nil {
+		t.Fatalf("failed to add policy file to index: %v", err)
 	}
 	commit, err := w.Commit("Initial commit", &git.CommitOptions{
 		Author: &object.Signature{
@@ -127,6 +137,64 @@ func initLocalGitRepo(t *testing.T, repoDir string) (string, string) {
 	}
 
 	return repoDir, commit.String()
+}
+
+func TestGitGatherer_Gather_SubdirTraversal(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		subdir  string
+		wantErr string
+	}{
+		{
+			name:   "valid subdir",
+			subdir: "policies",
+		},
+		{
+			name:    "dot-dot traversal",
+			subdir:  "../../../etc",
+			wantErr: "traverses outside the repository root",
+		},
+		{
+			name:    "dot-dot in middle",
+			subdir:  "policies/../../etc",
+			wantErr: "traverses outside the repository root",
+		},
+		{
+			name:    "dot-dot with double slash",
+			subdir:  "../..",
+			wantErr: "traverses outside the repository root",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			sourceDir := t.TempDir()
+			repoPath, _ := initLocalGitRepo(t, sourceDir)
+
+			gg := GitGatherer{}
+			destDir := t.TempDir()
+			uri := fmt.Sprintf("file://%s//%s", repoPath, tt.subdir)
+
+			_, err := gg.Gather(context.Background(), uri, destDir)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+				}
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Errorf("expected error containing %q, got %q", tt.wantErr, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
 }
 
 func TestProcessUrl(t *testing.T) {

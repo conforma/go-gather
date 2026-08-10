@@ -164,6 +164,10 @@ func (g *GitGatherer) Gather(ctx context.Context, src, dst string) (metadata.Met
 	}
 
 	if subdir != "" {
+		path := filepath.Join(tmpDir, subdir)
+		if !helpers.IsPathContained(path, tmpDir) {
+			return nil, fmt.Errorf("subdir %q traverses outside the repository root", subdir)
+		}
 		w, err = r.Worktree()
 		if err != nil {
 			return nil, fmt.Errorf("error getting worktree: %w", err)
@@ -172,7 +176,6 @@ func (g *GitGatherer) Gather(ctx context.Context, src, dst string) (metadata.Met
 		if err != nil {
 			return nil, fmt.Errorf("path %s does not exist in the repository", subdir)
 		}
-		path := filepath.Join(tmpDir, subdir)
 		err = helpers.CopyDir(path, dst)
 		if err != nil {
 			return nil, fmt.Errorf("error copying directory: %w", err)
