@@ -176,7 +176,11 @@ func (g *GitGatherer) Gather(ctx context.Context, src, dst string) (metadata.Met
 		if err != nil {
 			return nil, fmt.Errorf("path %s does not exist in the repository", subdir)
 		}
-		err = helpers.CopyDir(path, dst)
+		// Copy the subdir through an os.Root anchored at the repository root so
+		// that a malicious repository cannot use an in-tree symlink to escape
+		// tmpDir and exfiltrate host files. The lexical check above remains a
+		// cheap early reject for '..' traversal.
+		err = helpers.CopyDirConfined(tmpDir, subdir, dst)
 		if err != nil {
 			return nil, fmt.Errorf("error copying directory: %w", err)
 		}

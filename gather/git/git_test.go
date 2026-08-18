@@ -197,6 +197,86 @@ func TestGitGatherer_Gather_SubdirTraversal(t *testing.T) {
 	}
 }
 
+// initLocalGitRepoWithEscapingSymlink creates a repo whose policies/ subdir
+// contains a symlink pointing at targetPath, which lives outside the repository.
+// It returns the repo path.
+func initLocalGitRepoWithEscapingSymlink(t *testing.T, repoDir, targetPath string) string {
+	t.Helper()
+
+	repo, err := git.PlainInit(repoDir, false)
+	if err != nil {
+		t.Fatalf("failed to init local git repo in %s: %v", repoDir, err)
+	}
+
+	policiesDir := filepath.Join(repoDir, "policies")
+	if err := os.MkdirAll(policiesDir, 0755); err != nil {
+		t.Fatalf("failed to create policies subdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(policiesDir, "policy.rego"), []byte("package main\n"), 0600); err != nil {
+		t.Fatalf("failed to write policy file: %v", err)
+	}
+	// The malicious symlink whose target escapes the repository root.
+	if err := os.Symlink(targetPath, filepath.Join(policiesDir, "leak")); err != nil {
+		t.Fatalf("failed to create escaping symlink: %v", err)
+	}
+
+	w, err := repo.Worktree()
+	if err != nil {
+		t.Fatalf("failed to get worktree: %v", err)
+	}
+	if _, err = w.Add("policies/policy.rego"); err != nil {
+		t.Fatalf("failed to add policy file to index: %v", err)
+	}
+	if _, err = w.Add("policies/leak"); err != nil {
+		t.Fatalf("failed to add symlink to index: %v", err)
+	}
+	if _, err = w.Commit("Initial commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Tester",
+			Email: "tester@example.com",
+			When:  time.Now(),
+		},
+	}); err != nil {
+		t.Fatalf("failed to commit: %v", err)
+	}
+
+	return repoDir
+}
+
+// TestGitGatherer_Gather_SubdirSymlinkEscape verifies that a repository whose
+// requested subdir contains a symlink escaping the repository root cannot
+// exfiltrate host files into the destination. The gather must fail closed and
+// must not copy the symlink target's contents into dst.
+//
+// The escaping symlink targets a stable host path (/etc/hostname) rather than a
+// temp file: go-git rewrites symlink targets that share the clone's temp-dir
+// ancestor into relative paths that dangle after cloning, which would mask the
+// exfiltration. A path outside the temp tree reproduces the real attack.
+func TestGitGatherer_Gather_SubdirSymlinkEscape(t *testing.T) {
+	t.Parallel()
+
+	const hostTarget = "/etc/hostname"
+	if _, err := os.Stat(hostTarget); err != nil {
+		t.Skipf("stable host target %q unavailable: %v", hostTarget, err)
+	}
+
+	sourceDir := t.TempDir()
+	repoPath := initLocalGitRepoWithEscapingSymlink(t, sourceDir, hostTarget)
+
+	gg := GitGatherer{}
+	destDir := t.TempDir()
+	uri := fmt.Sprintf("file://%s//%s", repoPath, "policies")
+
+	_, err := gg.Gather(context.Background(), uri, destDir)
+
+	if _, rerr := os.Stat(filepath.Join(destDir, "leak")); rerr == nil {
+		t.Fatalf("escaping symlink exfiltrated host file %q into destination", hostTarget)
+	}
+	if err == nil {
+		t.Errorf("expected Gather to fail closed on escaping symlink, got nil")
+	}
+}
+
 func TestProcessUrl(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
