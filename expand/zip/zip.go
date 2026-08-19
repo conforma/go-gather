@@ -20,7 +20,6 @@ package zip
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,16 +32,23 @@ import (
 
 var pathExpanderFunc = helpers.ExpandPath
 
-// ZipExpander provides functionality to extract ZIP archives.
+// ZipExpander provides functionality to extract ZIP archives. Its limits come
+// from the embedded ExpandOptions: each zero value uses the default and a
+// negative value disables the check, so a zero-value ZipExpander is safe.
 type ZipExpander struct {
-	FileSizeLimit int64
-	FilesLimit    int
+	expand.ExpandOptions
+}
+
+// NewZipExpander returns a ZipExpander with safe default resource limits,
+// overridable via options.
+func NewZipExpander(opts ...expand.Option) *ZipExpander {
+	return &ZipExpander{ExpandOptions: expand.ResolveOptions(opts...)}
 }
 
 // Expand extracts a ZIP file to the specified destination directory.
 // It handles tilde expansion, enforces file size limits, and ensures secure extraction.
-func (z *ZipExpander) Expand(ctx context.Context, src, dst string, umask os.FileMode) error {
-	src, err := pathExpanderFunc(src)
+func (z *ZipExpander) Expand(ctx context.Context, src, dst string, umask os.FileMode) (err error) {
+	src, err = pathExpanderFunc(src)
 	if err != nil {
 		return fmt.Errorf("failed to expand source path: %w", err)
 	}
@@ -59,15 +65,32 @@ func (z *ZipExpander) Expand(ctx context.Context, src, dst string, umask os.File
 	}
 	defer archive.Close()
 
-	// Prepare a buffer for copying file contents
-	const bufferSize = 32 * 1024 // 32 KB
-	buffer := make([]byte, bufferSize)
+	maxEntry, maxTotal, filesLimit := z.Effective()
+
+	// Remove partial output on failure so a rejected archive does not leave
+	// extracted data behind, but only if we created dst (never delete a
+	// pre-existing destination).
+	_, dstStatErr := os.Stat(dst)
+	createdDst := os.IsNotExist(dstStatErr)
+	defer expand.RemoveOnError(dst, createdDst, &err)
+
+	// Enforce the entry-count limit up front to reject many-file bombs before
+	// extracting anything. The central directory gives the full count.
+	if len(archive.File) > filesLimit {
+		return fmt.Errorf("zip archive contains %d files, exceeding the limit of %d", len(archive.File), filesLimit)
+	}
+
+	// totalExtracted tracks the cumulative extracted size across all entries so
+	// many individually-valid entries cannot exceed the total in aggregate. One
+	// buffer is reused across entries to avoid a per-entry allocation.
+	var totalExtracted int64
+	buf := make([]byte, 32*1024)
 
 	// Iterate over files in the archive
 	for _, f := range archive.File {
-		// Enforce file size limit if set
-		if z.FileSizeLimit > 0 && f.FileInfo().Size() > z.FileSizeLimit {
-			return fmt.Errorf("file %q exceeds size limit of %d bytes", f.Name, z.FileSizeLimit)
+		// Enforce the per-entry declared size limit as a cheap early reject.
+		if f.FileInfo().Size() > maxEntry {
+			return fmt.Errorf("zip entry %q size %d exceeds the per-entry limit of %d bytes", f.Name, f.FileInfo().Size(), maxEntry)
 		}
 
 		// Construct full file path. safearchive prevents Zip Slip.
@@ -79,19 +102,19 @@ func (z *ZipExpander) Expand(ctx context.Context, src, dst string, umask os.File
 
 		// Handle directories
 		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(filePath, umask); err != nil {
+			if err = os.MkdirAll(filePath, umask); err != nil {
 				return fmt.Errorf("failed to create directory %q: %w", filePath, err)
 			}
 			continue
 		}
 
 		// Ensure destination directory exists
-		if err := os.MkdirAll(filepath.Dir(filePath), umask); err != nil {
+		if err = os.MkdirAll(filepath.Dir(filePath), umask); err != nil {
 			return fmt.Errorf("failed to create directory %q: %w", filepath.Dir(filePath), err)
 		}
 
 		// Extract the file
-		if err := z.extractFile(f, filePath, buffer); err != nil {
+		if err = z.extractFile(f, filePath, &totalExtracted, maxTotal, buf); err != nil {
 			return err
 		}
 	}
@@ -99,16 +122,16 @@ func (z *ZipExpander) Expand(ctx context.Context, src, dst string, umask os.File
 	return nil
 }
 
-// extractFile handles the extraction of a single file from the ZIP archive.
-func (z *ZipExpander) extractFile(f *zip.File, filePath string, buffer []byte) (err error) {
-	// Open the source file within the archive
+// extractFile extracts a single file from the ZIP archive, enforcing the
+// archive-wide total size limit on the actual bytes written via
+// expand.CopyBounded. totalExtracted accumulates across the whole archive.
+func (z *ZipExpander) extractFile(f *zip.File, filePath string, totalExtracted *int64, maxTotal int64, buf []byte) (err error) {
 	srcFile, err := f.Open()
 	if err != nil {
 		return fmt.Errorf("failed to open source file %q: %w", f.Name, err)
 	}
 	defer srcFile.Close()
 
-	// Open the destination file
 	dstFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 	if err != nil {
 		return fmt.Errorf("failed to create file %q: %w", filePath, err)
@@ -119,27 +142,9 @@ func (z *ZipExpander) extractFile(f *zip.File, filePath string, buffer []byte) (
 		}
 	}()
 
-	// Enforce file size limit during copy
-	var totalBytes int64
-	for {
-		n, err := srcFile.Read(buffer)
-		if n > 0 {
-			totalBytes += int64(n)
-			if z.FileSizeLimit > 0 && totalBytes > z.FileSizeLimit {
-				return fmt.Errorf("extracted file %q exceeds size limit of %d bytes", f.Name, z.FileSizeLimit)
-			}
-			if _, writeErr := dstFile.Write(buffer[:n]); writeErr != nil {
-				return fmt.Errorf("failed to write to file %q: %w", filePath, writeErr)
-			}
-		}
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("error reading file %q: %w", f.Name, err)
-		}
+	if err := expand.CopyBounded(dstFile, srcFile, totalExtracted, maxTotal, buf); err != nil {
+		return fmt.Errorf("failed to extract file %q: %w", f.Name, err)
 	}
-
 	return nil
 }
 
@@ -149,5 +154,5 @@ func (z *ZipExpander) Matcher(extension string) bool {
 }
 
 func init() {
-	expand.RegisterExpander(&ZipExpander{})
+	expand.RegisterExpander(NewZipExpander())
 }

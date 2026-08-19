@@ -23,10 +23,90 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/conforma/go-gather/expand"
 	customzip "github.com/conforma/go-gather/expand/zip"
 )
+
+func TestNewZipExpander_Defaults(t *testing.T) {
+	e := customzip.NewZipExpander()
+	if e.MaxEntrySize != expand.DefaultMaxEntrySize {
+		t.Errorf("MaxEntrySize = %d, want %d", e.MaxEntrySize, expand.DefaultMaxEntrySize)
+	}
+	if e.MaxTotalSize != expand.DefaultMaxTotalSize {
+		t.Errorf("MaxTotalSize = %d, want %d", e.MaxTotalSize, expand.DefaultMaxTotalSize)
+	}
+	if e.FilesLimit != expand.DefaultFilesLimit {
+		t.Errorf("FilesLimit = %d, want %d", e.FilesLimit, expand.DefaultFilesLimit)
+	}
+}
+
+func TestNewZipExpander_Override(t *testing.T) {
+	e := customzip.NewZipExpander(expand.WithFilesLimit(5))
+	if e.FilesLimit != 5 {
+		t.Errorf("FilesLimit = %d, want 5", e.FilesLimit)
+	}
+	if e.MaxEntrySize != expand.DefaultMaxEntrySize {
+		t.Errorf("MaxEntrySize = %d, want default %d", e.MaxEntrySize, expand.DefaultMaxEntrySize)
+	}
+}
+
+// TestZipExpander_Expand_TotalSizeLimit checks that a zip whose entries are each
+// within the per-entry limit but whose combined extracted size exceeds the total
+// limit is rejected, and the partial output is removed.
+func TestZipExpander_Expand_TotalSizeLimit(t *testing.T) {
+	tempDir := t.TempDir()
+	srcZip := filepath.Join(tempDir, "cumulative.zip")
+	dstDir := filepath.Join(tempDir, "output")
+
+	// Three 5-byte entries: each <= per-entry 100, but 15 total > total 12.
+	if err := createZipFile(srcZip, []zipTestFile{
+		{Name: "a.txt", Content: "AAAAA"},
+		{Name: "b.txt", Content: "BBBBB"},
+		{Name: "c.txt", Content: "CCCCC"},
+	}); err != nil {
+		t.Fatalf("failed to create zip file: %v", err)
+	}
+
+	z := customzip.NewZipExpander(expand.WithMaxEntrySize(100), expand.WithMaxTotalSize(12))
+	err := z.Expand(context.Background(), srcZip, dstDir, 0755)
+	if err == nil {
+		t.Fatalf("expected total-size error, got nil")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("expected size-limit error, got %v", err)
+	}
+	if _, statErr := os.Stat(dstDir); statErr == nil {
+		t.Errorf("partial extraction output should have been removed on failure")
+	}
+}
+
+// TestZipExpander_Expand_FilesLimit checks that a zip whose entry count exceeds
+// FilesLimit is rejected.
+func TestZipExpander_Expand_FilesLimit(t *testing.T) {
+	tempDir := t.TempDir()
+	srcZip := filepath.Join(tempDir, "many.zip")
+	dstDir := filepath.Join(tempDir, "output")
+
+	if err := createZipFile(srcZip, []zipTestFile{
+		{Name: "a.txt", Content: "a"},
+		{Name: "b.txt", Content: "b"},
+		{Name: "c.txt", Content: "c"},
+	}); err != nil {
+		t.Fatalf("failed to create zip file: %v", err)
+	}
+
+	z := customzip.NewZipExpander(expand.WithFilesLimit(2))
+	err := z.Expand(context.Background(), srcZip, dstDir, 0755)
+	if err == nil {
+		t.Fatalf("expected files-limit error, got nil")
+	}
+	if !strings.Contains(err.Error(), "limit") {
+		t.Errorf("expected files-limit error, got %v", err)
+	}
+}
 
 // TestZipExpander_Matcher verifies that the Matcher function correctly identifies .zip files.
 func TestZipExpander_Matcher(t *testing.T) {
@@ -115,9 +195,7 @@ func TestZipExpander_Expand_WithDirectories(t *testing.T) {
 
 // TestZipExpander_Expand_SizeLimit checks that an error is raised if a file exceeds the size limit.
 func TestZipExpander_Expand_SizeLimit(t *testing.T) {
-	z := &customzip.ZipExpander{
-		FileSizeLimit: 10, // artificially small limit
-	}
+	z := customzip.NewZipExpander(expand.WithMaxEntrySize(10)) // artificially small per-entry limit
 
 	tempDir := t.TempDir()
 	srcZip := filepath.Join(tempDir, "test_size_limit.zip")

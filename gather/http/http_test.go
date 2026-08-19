@@ -18,14 +18,163 @@ package http
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
+
+// TestHTTPGatherer_Gather_FileMode verifies a new download honors the process
+// umask (matching os.Create), rather than being forced to a fixed mode: a
+// typical umask yields group/world-readable files, a restrictive one does not.
+func TestHTTPGatherer_Gather_FileMode(t *testing.T) {
+	cases := []struct {
+		name  string
+		umask int
+		want  os.FileMode
+	}{
+		{"typical umask", 0o022, 0o644},
+		{"restrictive umask", 0o077, 0o600},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			old := syscall.Umask(tc.umask)
+			defer syscall.Umask(old)
+
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte("hello"))
+			})
+			server := httptest.NewServer(handler)
+			defer server.Close()
+
+			g := NewHTTPGatherer()
+			dest := filepath.Join(t.TempDir(), "file.txt")
+			if _, err := g.Gather(context.Background(), server.URL+"/file.txt", dest); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			fi, err := os.Stat(dest)
+			if err != nil {
+				t.Fatalf("failed to stat destination: %v", err)
+			}
+			if fi.Mode().Perm() != tc.want {
+				t.Errorf("downloaded file mode = %o, want %o (umask %o)", fi.Mode().Perm(), tc.want, tc.umask)
+			}
+		})
+	}
+}
+
+func TestHTTPGatherer_Gather_PreservesExistingMode(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("new content"))
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	dest := filepath.Join(t.TempDir(), "file.txt")
+	// 0400 is distinct from both the 0644 default and os.CreateTemp's 0600, so
+	// this genuinely proves the existing mode is preserved.
+	if err := os.WriteFile(dest, []byte("old"), 0400); err != nil {
+		t.Fatalf("failed to seed destination: %v", err)
+	}
+
+	g := NewHTTPGatherer()
+	if _, err := g.Gather(context.Background(), server.URL+"/file.txt", dest); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	fi, err := os.Stat(dest)
+	if err != nil {
+		t.Fatalf("failed to stat destination: %v", err)
+	}
+	if fi.Mode().Perm() != 0400 {
+		t.Errorf("overwritten file mode = %o, want preserved %o", fi.Mode().Perm(), 0400)
+	}
+}
+
+func TestHTTPGatherer_Gather_MaxInt64LimitNotEmpty(t *testing.T) {
+	const body = "hello world"
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	// A maximal positive limit must behave as effectively unlimited, not
+	// overflow the internal limit+1 and silently produce an empty file.
+	g := NewHTTPGatherer(WithMaxResponseBytes(math.MaxInt64))
+	dest := filepath.Join(t.TempDir(), "file.txt")
+	if _, err := g.Gather(context.Background(), server.URL+"/file.txt", dest); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("failed to read destination: %v", err)
+	}
+	if string(got) != body {
+		t.Errorf("content = %q, want %q (limit+1 overflow truncated the body)", got, body)
+	}
+}
+
+// TestHTTPGatherer_Gather_ChunkedBodyLimit streams a body with no Content-Length
+// (chunked), so the early Content-Length reject is bypassed and the LimitReader
+// path — the real defense against a misbehaving server — enforces the limit.
+func TestHTTPGatherer_Gather_ChunkedBodyLimit(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		flusher, _ := w.(http.Flusher)
+		for i := 0; i < 4; i++ { // 4 x 256 = 1024 bytes, no Content-Length
+			_, _ = w.Write([]byte(strings.Repeat("A", 256)))
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	g := NewHTTPGatherer(WithMaxResponseBytes(512))
+	dest := filepath.Join(t.TempDir(), "file.txt")
+
+	_, err := g.Gather(context.Background(), server.URL+"/file.txt", dest)
+	if err == nil {
+		t.Fatalf("expected error for oversized chunked body, got nil")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("expected size-limit error, got %v", err)
+	}
+}
+
+// TestHTTPGatherer_Gather_LimitDisabled verifies that WithMaxResponseBytes(0)
+// disables the limit. A guard inversion would instead reject any non-empty body,
+// so this covers the disabled branch meaningfully.
+func TestHTTPGatherer_Gather_LimitDisabled(t *testing.T) {
+	body := strings.Repeat("A", 4096)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	g := NewHTTPGatherer(WithMaxResponseBytes(0))
+	dest := filepath.Join(t.TempDir(), "file.txt")
+
+	if _, err := g.Gather(context.Background(), server.URL+"/file.txt", dest); err != nil {
+		t.Fatalf("unexpected error with limit disabled: %v", err)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("failed to read destination: %v", err)
+	}
+	if string(got) != body {
+		t.Errorf("content length = %d, want %d (limit should be disabled)", len(got), len(body))
+	}
+}
 
 func TestHTTPGatherer_WithTransport(t *testing.T) {
 	customTransport := &http.Transport{
@@ -118,6 +267,83 @@ func TestHTTPGatherer_Gather_Success(t *testing.T) {
 	}
 	if httpMeta.Timestamp == "" {
 		t.Error("expected non-empty timestamp")
+	}
+}
+
+func TestHTTPGatherer_DefaultMaxResponseBytes(t *testing.T) {
+	g := NewHTTPGatherer()
+	if g.MaxResponseBytes != DefaultMaxResponseBytes {
+		t.Errorf("expected default MaxResponseBytes=%d, got %d", DefaultMaxResponseBytes, g.MaxResponseBytes)
+	}
+}
+
+func TestHTTPGatherer_Gather_ResponseBodyLimit(t *testing.T) {
+	body := strings.Repeat("A", 1024) // 1 KiB
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	// Limit smaller than the body — the download must be refused.
+	g := NewHTTPGatherer(WithMaxResponseBytes(512))
+	dest := filepath.Join(t.TempDir(), "file.txt")
+
+	_, err := g.Gather(context.Background(), server.URL+"/file.txt", dest)
+	if err == nil {
+		t.Fatalf("expected error when response body exceeds limit, got nil")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("expected size-limit error, got %v", err)
+	}
+}
+
+func TestHTTPGatherer_Gather_ResponseBodyLimit_PreservesExistingDest(t *testing.T) {
+	body := strings.Repeat("A", 1024)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	dest := filepath.Join(t.TempDir(), "file.txt")
+	const original = "ORIGINAL CONTENT"
+	if err := os.WriteFile(dest, []byte(original), 0600); err != nil {
+		t.Fatalf("failed to seed destination: %v", err)
+	}
+
+	g := NewHTTPGatherer(WithMaxResponseBytes(512))
+	_, err := g.Gather(context.Background(), server.URL+"/file.txt", dest)
+	if err == nil {
+		t.Fatalf("expected error when response body exceeds limit, got nil")
+	}
+
+	got, readErr := os.ReadFile(dest)
+	if readErr != nil {
+		t.Fatalf("destination should still exist: %v", readErr)
+	}
+	if string(got) != original {
+		t.Errorf("destination was modified on a rejected download: got %q, want %q", got, original)
+	}
+}
+
+func TestHTTPGatherer_Gather_WithinResponseBodyLimit(t *testing.T) {
+	body := strings.Repeat("A", 1024) // 1 KiB
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	g := NewHTTPGatherer(WithMaxResponseBytes(4096))
+	dest := filepath.Join(t.TempDir(), "file.txt")
+
+	meta, err := g.Gather(context.Background(), server.URL+"/file.txt", dest)
+	if err != nil {
+		t.Fatalf("unexpected error within limit: %v", err)
+	}
+	if got := meta.(HTTPMetadata).Size; got != int64(len(body)) {
+		t.Errorf("expected size=%d, got %d", len(body), got)
 	}
 }
 

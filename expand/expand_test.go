@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -64,6 +65,51 @@ func TestRegisterAndGetExpander(t *testing.T) {
 }
 
 // TestIsCompressedFile checks that known magic numbers are correctly recognized.
+func TestDefaultExpandOptions(t *testing.T) {
+	o := DefaultExpandOptions()
+	if o.MaxEntrySize != DefaultMaxEntrySize {
+		t.Errorf("MaxEntrySize = %d, want %d", o.MaxEntrySize, DefaultMaxEntrySize)
+	}
+	if o.MaxTotalSize != DefaultMaxTotalSize {
+		t.Errorf("MaxTotalSize = %d, want %d", o.MaxTotalSize, DefaultMaxTotalSize)
+	}
+	if o.FilesLimit != DefaultFilesLimit {
+		t.Errorf("FilesLimit = %d, want %d", o.FilesLimit, DefaultFilesLimit)
+	}
+}
+
+// TestResolveOptions_OverridePreservesOtherDefaults ensures a caller setting one
+// limit does not accidentally change the others.
+func TestResolveOptions_OverridePreservesOtherDefaults(t *testing.T) {
+	o := ResolveOptions(WithMaxEntrySize(123))
+	if o.MaxEntrySize != 123 {
+		t.Errorf("MaxEntrySize = %d, want 123", o.MaxEntrySize)
+	}
+	if o.MaxTotalSize != DefaultMaxTotalSize || o.FilesLimit != DefaultFilesLimit {
+		t.Errorf("other defaults changed: total=%d files=%d", o.MaxTotalSize, o.FilesLimit)
+	}
+}
+
+// TestEffectiveHelpers verifies the zero-value-safe resolution: zero uses the
+// default, a negative value disables the check, and a positive value is used.
+func TestEffectiveHelpers(t *testing.T) {
+	if got := effectiveSize(0, DefaultMaxEntrySize); got != DefaultMaxEntrySize {
+		t.Errorf("effectiveSize(0) = %d, want default %d", got, DefaultMaxEntrySize)
+	}
+	if got := effectiveSize(-1, DefaultMaxEntrySize); got != math.MaxInt64 {
+		t.Errorf("effectiveSize(-1) = %d, want MaxInt64 (disabled)", got)
+	}
+	if got := effectiveSize(42, DefaultMaxEntrySize); got != 42 {
+		t.Errorf("effectiveSize(42) = %d, want 42", got)
+	}
+	if got := effectiveCount(0, DefaultFilesLimit); got != DefaultFilesLimit {
+		t.Errorf("effectiveCount(0) = %d, want default %d", got, DefaultFilesLimit)
+	}
+	if got := effectiveCount(-1, DefaultFilesLimit); got != math.MaxInt {
+		t.Errorf("effectiveCount(-1) = %d, want MaxInt (disabled)", got)
+	}
+}
+
 func TestIsCompressedFile(t *testing.T) {
 	tests := []struct {
 		name           string
