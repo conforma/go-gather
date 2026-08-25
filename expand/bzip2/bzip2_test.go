@@ -25,8 +25,63 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/conforma/go-gather/expand"
 	"github.com/conforma/go-gather/internal/helpers"
 )
+
+func TestNewBzip2Expander_Defaults(t *testing.T) {
+	e := NewBzip2Expander()
+	if e.MaxEntrySize != expand.DefaultMaxEntrySize {
+		t.Errorf("MaxEntrySize = %d, want %d", e.MaxEntrySize, expand.DefaultMaxEntrySize)
+	}
+}
+
+func TestNewBzip2Expander_Override(t *testing.T) {
+	e := NewBzip2Expander(expand.WithMaxEntrySize(99))
+	if e.MaxEntrySize != 99 {
+		t.Errorf("MaxEntrySize = %d, want 99", e.MaxEntrySize)
+	}
+}
+
+// TestBzip2Expander_Expand_AtSizeLimit verifies that a file whose size is exactly
+// the limit is accepted (the over-limit rejection is covered in
+// TestBzip2Expander_Expand).
+func TestBzip2Expander_Expand_AtSizeLimit(t *testing.T) {
+	// The fixture decompresses to "Hello Bzip2!" (12 bytes).
+	e := NewBzip2Expander(expand.WithMaxEntrySize(12))
+	bz2Path := createBzip2Fixture(t)
+	dstDir := t.TempDir()
+	if err := e.Expand(context.Background(), bz2Path, dstDir, 0o755); err != nil {
+		t.Fatalf("extraction at exactly the limit should succeed, got %v", err)
+	}
+}
+
+// TestBzip2Expander_Expand_PreservesExistingOnFailure verifies that a failed
+// (over-limit) decode leaves a pre-existing output file untouched, thanks to the
+// atomic temp-file-then-rename write.
+func TestBzip2Expander_Expand_PreservesExistingOnFailure(t *testing.T) {
+	bz2Path := createBzip2Fixture(t) // decompresses to "Hello Bzip2!" (12 bytes)
+	dstDir := t.TempDir()
+	// The output path is dst/<base without .bz2>; the fixture is "test.txt.bz2".
+	outPath := filepath.Join(dstDir, "test.txt")
+	const original = "ORIGINAL"
+	if err := os.WriteFile(outPath, []byte(original), 0600); err != nil {
+		t.Fatalf("failed to seed existing output: %v", err)
+	}
+
+	e := NewBzip2Expander(expand.WithMaxEntrySize(3)) // 12 > 3 → fails
+	if err := e.Expand(context.Background(), bz2Path, dstDir, 0o755); err == nil {
+		t.Fatalf("expected over-limit failure, got nil")
+	}
+
+	got, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("existing output should still exist: %v", err)
+	}
+	if string(got) != original {
+		t.Errorf("existing output was clobbered on failure: got %q, want %q", got, original)
+	}
+}
 
 // helloBzip2Fixture is a small bzip2-encoded byte slice that decompresses to "Hello Bzip2!".
 // This was generated externally to ensure its validity.
@@ -67,7 +122,7 @@ func TestBzip2Expander_Matcher(t *testing.T) {
 
 // TestBzip2Expander_Expand contains all tests for the Expand method.
 func TestBzip2Expander_Expand(t *testing.T) {
-	expander := &Bzip2Expander{FileSizeLimit: 1024} // 1 KB limit
+	expander := NewBzip2Expander(expand.WithMaxEntrySize(1024)) // 1 KB limit
 
 	// Positive Test: Successfully decompresses a valid bzip2 file into a directory.
 	t.Run("positive: decompresses valid bzip2 file into directory", func(t *testing.T) {
@@ -196,7 +251,7 @@ func TestBzip2Expander_Expand(t *testing.T) {
 		ctx := context.Background()
 
 		// Create an expander with a small size limit
-		smallExpander := &Bzip2Expander{FileSizeLimit: 5} // 5 bytes
+		smallExpander := NewBzip2Expander(expand.WithMaxEntrySize(5)) // 5 bytes
 
 		bz2Path := createBzip2Fixture(t)
 		dstDir := t.TempDir()
@@ -227,7 +282,7 @@ func TestBzip2Expander_Expand(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected Expand to fail due to corrupt bzip2 data, got nil")
 		}
-		if !strings.Contains(err.Error(), "error during decompression") {
+		if !strings.Contains(err.Error(), "failed to decompress") {
 			t.Errorf("unexpected error message: %v", err)
 		}
 	})

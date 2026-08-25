@@ -41,16 +41,23 @@ var (
 	untarFunc        = untar
 )
 
-// TarExpander extracts tar, tar.gz, and tar.bz2 archives.
+// TarExpander extracts tar, tar.gz, and tar.bz2 archives. Its limits come from
+// the embedded ExpandOptions: each zero value uses the default and a negative
+// value disables the check, so a zero-value TarExpander is safe, not unlimited.
 type TarExpander struct {
-	FileSizeLimit int64
-	FilesLimit    int
+	expand.ExpandOptions
+}
+
+// NewTarExpander returns a TarExpander with safe default resource limits,
+// overridable via options.
+func NewTarExpander(opts ...expand.Option) *TarExpander {
+	return &TarExpander{ExpandOptions: expand.ResolveOptions(opts...)}
 }
 
 // Expand extracts a tar archive from src into the dst directory.
-func (t *TarExpander) Expand(ctx context.Context, src, dst string, umask os.FileMode) error {
+func (t *TarExpander) Expand(ctx context.Context, src, dst string, umask os.FileMode) (err error) {
 
-	src, err := pathExpanderFunc(src)
+	src, err = pathExpanderFunc(src)
 	if err != nil {
 		return fmt.Errorf("failed to expand source path: %w", err)
 	}
@@ -65,22 +72,26 @@ func (t *TarExpander) Expand(ctx context.Context, src, dst string, umask os.File
 	}
 	defer input.Close()
 
-	if strings.Contains(src, "tar.gz") || strings.Contains(src, "tgz") {
-		if err = extractTarGzFunc(input, dst, t.FileSizeLimit, t.FilesLimit); err != nil {
-			return fmt.Errorf("failed to extract tar.gz file: %s", err)
-		}
-	} else if strings.Contains(src, "tar.bz2") || strings.Contains(src, "tbz2") {
-		if err = extractTarBzFunc(input, dst, src, t.FileSizeLimit, t.FilesLimit); err != nil {
-			return fmt.Errorf("failed to extract tar.bz2 file: %s", err)
-		}
-	} else {
-		if err = untarFunc(input, dst, src, t.FileSizeLimit, t.FilesLimit); err != nil {
-			return fmt.Errorf("failed to untar file: %s", err)
-		}
+	maxEntry, maxTotal, filesLimit := t.Effective()
+
+	// Remove partial output on failure so a rejected archive does not leave
+	// extracted (possibly attacker-controlled) data behind, but only if we
+	// created dst (never delete a pre-existing destination).
+	_, dstStatErr := os.Stat(dst)
+	createdDst := os.IsNotExist(dstStatErr)
+	defer expand.RemoveOnError(dst, createdDst, &err)
+
+	switch {
+	case strings.Contains(src, "tar.gz") || strings.Contains(src, "tgz"):
+		err = extractTarGzFunc(input, dst, maxEntry, maxTotal, filesLimit)
+	case strings.Contains(src, "tar.bz2") || strings.Contains(src, "tbz2"):
+		err = extractTarBzFunc(input, dst, src, maxEntry, maxTotal, filesLimit)
+	default:
+		err = untarFunc(input, dst, src, maxEntry, maxTotal, filesLimit)
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to get destination directory size: %s", dst)
+		return fmt.Errorf("failed to extract tar archive: %w", err)
 	}
 
 	return nil
@@ -98,24 +109,26 @@ func (t *TarExpander) Matcher(fileName string) bool {
 }
 
 // extractTarBz is a helper function that extracts a tarball compressed with bzip2 to a destination directory
-func extractTarBz(input io.Reader, dst, src string, fileSizeLimit int64, filesLimit int) error {
+func extractTarBz(input io.Reader, dst, src string, maxEntrySize, maxTotalSize int64, filesLimit int) error {
 	bzr := bzip2.NewReader(input)
-	return untar(bzr, dst, src, fileSizeLimit, filesLimit)
+	return untar(bzr, dst, src, maxEntrySize, maxTotalSize, filesLimit)
 }
 
 // extractTarGz is a helper function that extracts a tarball compressed with gzip to a destination directory
-func extractTarGz(input io.Reader, dst string, fileSizeLimit int64, filesLimit int) error {
+func extractTarGz(input io.Reader, dst string, maxEntrySize, maxTotalSize int64, filesLimit int) error {
 	gzr, err := gzip.NewReader(input)
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %s", err)
 	}
 	defer gzr.Close()
 
-	return untar(gzr, dst, "", fileSizeLimit, filesLimit)
+	return untar(gzr, dst, "", maxEntrySize, maxTotalSize, filesLimit)
 }
 
-// writeTarFile creates path, copies from r into it, and returns any copy or close error.
-func writeTarFile(fPath string, mode os.FileMode, r io.Reader) (err error) {
+// writeTarFile creates fPath and copies from r into it, enforcing the
+// archive-wide total size limit on actual bytes via expand.CopyBounded.
+// totalExtracted accumulates across entries and buf is reused across calls.
+func writeTarFile(fPath string, mode os.FileMode, r io.Reader, totalExtracted *int64, maxTotalSize int64, buf []byte) (err error) {
 	outFile, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 	if err != nil {
 		return fmt.Errorf("error creating file (%s): %w", fPath, err)
@@ -125,23 +138,26 @@ func writeTarFile(fPath string, mode os.FileMode, r io.Reader) (err error) {
 			err = cerr
 		}
 	}()
-	if _, err = io.Copy(outFile, r); err != nil {
+	if err = expand.CopyBounded(outFile, r, totalExtracted, maxTotalSize, buf); err != nil {
 		return fmt.Errorf("error extracting file (%s): %w", fPath, err)
 	}
 	return nil
 }
 
-// untar is a helper function that untars a tarball to a destination directory based on the provided options.
-func untar(input io.Reader, dst, src string, fileSizeLimit int64, filesLimit int) error {
+// untar is a helper function that untars a tarball to a destination directory
+// based on the provided limits. The limits are already resolved to effective
+// values (see ExpandOptions.Effective), so they are enforced unconditionally.
+func untar(input io.Reader, dst, src string, maxEntrySize, maxTotalSize int64, filesLimit int) error {
 	tarReader := tar.NewReader(input)
 
 	seenDirs := map[string]*tar.Header{}
 	now := time.Now()
 
 	var (
-		totalFileSize int64
-		filesCount    int
+		totalExtracted int64 // actual bytes written, enforced against maxTotalSize
+		filesCount     int
 	)
+	buf := make([]byte, 32*1024) // reused across entries
 
 	// Initialize a counter for headers processed
 	headerCount := 0
@@ -160,17 +176,15 @@ func untar(input io.Reader, dst, src string, fileSizeLimit int64, filesLimit int
 
 		headerCount++
 
-		// Validate the file count limit
-		if filesLimit > 0 {
-			filesCount++
-			if filesCount > filesLimit {
-				return fmt.Errorf("tar file contains more files than the %d allowed: %d", filesLimit, filesCount)
-			}
-		}
-
-		// Skip extended headers
+		// Skip extended headers before counting so they don't count as files.
 		if header.Typeflag == tar.TypeXGlobalHeader || header.Typeflag == tar.TypeXHeader {
 			continue
+		}
+
+		// Validate the file count limit
+		filesCount++
+		if filesCount > filesLimit {
+			return fmt.Errorf("tar file contains more files than the %d allowed: %d", filesLimit, filesCount)
 		}
 
 		// Construct the file path safely to prevent Zip Slip
@@ -181,11 +195,11 @@ func untar(input io.Reader, dst, src string, fileSizeLimit int64, filesLimit int
 
 		fileInfo := header.FileInfo()
 		if !fileInfo.IsDir() {
-			totalFileSize += fileInfo.Size()
-
-			// Enforce file size limit
-			if fileSizeLimit > 0 && totalFileSize > fileSizeLimit {
-				return fmt.Errorf("tar file size exceeds the %d limit: %d", fileSizeLimit, totalFileSize)
+			// Per-entry declared-size early reject. The archive-wide total is
+			// enforced on actual bytes during the copy (see writeTarFile), which
+			// also catches entries that under-declare their size in the header.
+			if fileInfo.Size() > maxEntrySize {
+				return fmt.Errorf("tar entry %q size %d exceeds the per-entry limit of %d bytes", header.Name, fileInfo.Size(), maxEntrySize)
 			}
 		}
 
@@ -207,7 +221,7 @@ func untar(input io.Reader, dst, src string, fileSizeLimit int64, filesLimit int
 		}
 		// Extract the file
 
-		if err := writeTarFile(fPath, header.FileInfo().Mode(), tarReader); err != nil {
+		if err := writeTarFile(fPath, header.FileInfo().Mode(), tarReader, &totalExtracted, maxTotalSize, buf); err != nil {
 			return err
 		}
 
@@ -248,5 +262,5 @@ func untar(input io.Reader, dst, src string, fileSizeLimit int64, filesLimit int
 }
 
 func init() {
-	expand.RegisterExpander(&TarExpander{})
+	expand.RegisterExpander(NewTarExpander())
 }

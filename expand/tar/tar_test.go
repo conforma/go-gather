@@ -25,10 +25,119 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	bzip2 "github.com/dsnet/compress/bzip2"
+
+	"github.com/conforma/go-gather/expand"
 )
+
+func TestNewTarExpander_Defaults(t *testing.T) {
+	e := NewTarExpander()
+	if e.MaxEntrySize != expand.DefaultMaxEntrySize {
+		t.Errorf("MaxEntrySize = %d, want %d", e.MaxEntrySize, expand.DefaultMaxEntrySize)
+	}
+	if e.MaxTotalSize != expand.DefaultMaxTotalSize {
+		t.Errorf("MaxTotalSize = %d, want %d", e.MaxTotalSize, expand.DefaultMaxTotalSize)
+	}
+	if e.FilesLimit != expand.DefaultFilesLimit {
+		t.Errorf("FilesLimit = %d, want %d", e.FilesLimit, expand.DefaultFilesLimit)
+	}
+}
+
+func TestNewTarExpander_Override(t *testing.T) {
+	e := NewTarExpander(expand.WithMaxEntrySize(42))
+	if e.MaxEntrySize != 42 {
+		t.Errorf("MaxEntrySize = %d, want 42", e.MaxEntrySize)
+	}
+	if e.FilesLimit != expand.DefaultFilesLimit {
+		t.Errorf("FilesLimit = %d, want default %d", e.FilesLimit, expand.DefaultFilesLimit)
+	}
+}
+
+// TestTarExpander_Expand_EntrySizeLimit checks that a single entry exceeding the
+// per-entry limit is rejected.
+func TestTarExpander_Expand_EntrySizeLimit(t *testing.T) {
+	tempDir := t.TempDir()
+	srcFile := filepath.Join(tempDir, "big.tar")
+	dstDir := filepath.Join(tempDir, "output")
+
+	if err := createTarFile(srcFile, "big.txt", string(bytes.Repeat([]byte("A"), 100))); err != nil {
+		t.Fatalf("failed to create tar file: %v", err)
+	}
+
+	e := NewTarExpander(expand.WithMaxEntrySize(10))
+	err := e.Expand(context.Background(), srcFile, dstDir, 0)
+	if err == nil {
+		t.Fatalf("expected size-limit error, got nil")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("expected size-limit error, got %v", err)
+	}
+}
+
+// TestTarExpander_Expand_TotalSizeLimit checks that entries individually within
+// the per-entry limit but exceeding the archive-wide total are rejected, and
+// that the partial output is removed.
+func TestTarExpander_Expand_TotalSizeLimit(t *testing.T) {
+	tempDir := t.TempDir()
+	srcFile := filepath.Join(tempDir, "many.tar")
+	dstDir := filepath.Join(tempDir, "output")
+
+	if err := createTarFiles(srcFile, []tarEntry{
+		{"a.txt", string(bytes.Repeat([]byte("A"), 5))},
+		{"b.txt", string(bytes.Repeat([]byte("B"), 5))},
+		{"c.txt", string(bytes.Repeat([]byte("C"), 5))},
+	}); err != nil {
+		t.Fatalf("failed to create tar file: %v", err)
+	}
+
+	// Each entry is 5 bytes (<= per-entry 100), total 15 > total limit 12.
+	e := NewTarExpander(expand.WithMaxEntrySize(100), expand.WithMaxTotalSize(12))
+	err := e.Expand(context.Background(), srcFile, dstDir, 0)
+	if err == nil {
+		t.Fatalf("expected total-size error, got nil")
+	}
+	if _, statErr := os.Stat(dstDir); statErr == nil {
+		t.Errorf("partial extraction output should have been removed on failure")
+	}
+}
+
+// TestTarExpander_Expand_FilesLimit checks that an entry count exceeding the
+// limit is rejected.
+func TestTarExpander_Expand_FilesLimit(t *testing.T) {
+	tempDir := t.TempDir()
+	srcFile := filepath.Join(tempDir, "many.tar")
+	dstDir := filepath.Join(tempDir, "output")
+
+	if err := createTarFiles(srcFile, []tarEntry{
+		{"a.txt", "a"}, {"b.txt", "b"}, {"c.txt", "c"},
+	}); err != nil {
+		t.Fatalf("failed to create tar file: %v", err)
+	}
+
+	e := NewTarExpander(expand.WithFilesLimit(2))
+	err := e.Expand(context.Background(), srcFile, dstDir, 0)
+	if err == nil {
+		t.Fatalf("expected files-limit error, got nil")
+	}
+	if !strings.Contains(err.Error(), "more files") {
+		t.Errorf("expected files-limit error, got %v", err)
+	}
+}
+
+// TestTarExpander_ZeroValueIsSafe verifies a zero-value TarExpander enforces the
+// default limits rather than being unlimited.
+func TestTarExpander_ZeroValueIsSafe(t *testing.T) {
+	e := &TarExpander{} // all limits zero
+	maxEntry, maxTotal, filesLimit := e.Effective()
+	if maxEntry != expand.DefaultMaxEntrySize || maxTotal != expand.DefaultMaxTotalSize || filesLimit != expand.DefaultFilesLimit {
+		t.Errorf("zero-value limits = (%d, %d, %d), want defaults (%d, %d, %d)",
+			maxEntry, maxTotal, filesLimit,
+			expand.DefaultMaxEntrySize, expand.DefaultMaxTotalSize, expand.DefaultFilesLimit)
+	}
+}
 
 // TestTarExpander_Matcher tests the Matcher method for different file names.
 func TestTarExpander_Matcher(t *testing.T) {
@@ -191,6 +300,38 @@ func TestTarExpander_Expand_PathTraversal(t *testing.T) {
 	if _, statErr := os.Stat(sanitized); os.IsNotExist(statErr) {
 		t.Fatal("safearchive should have sanitized the path and extracted the file inside dst")
 	}
+}
+
+// tarEntry is a name/content pair for building multi-file test tars.
+type tarEntry struct {
+	Name    string
+	Content string
+}
+
+// createTarFiles creates a .tar containing the given entries.
+func createTarFiles(filePath string, entries []tarEntry) error {
+	f, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	tw := tar.NewWriter(f)
+	defer tw.Close()
+
+	for _, e := range entries {
+		if err := tw.WriteHeader(&tar.Header{
+			Name: e.Name,
+			Mode: 0600,
+			Size: int64(len(e.Content)),
+		}); err != nil {
+			return err
+		}
+		if _, err := tw.Write([]byte(e.Content)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // createTarFile creates a simple .tar with one file.
