@@ -38,3 +38,7 @@ refactor(http)!: change SetupClient signature
 
 Both use the same validator, `hack/check-commit-message.sh`, so local and CI
 results agree. Run its tests with `make test-hooks`.
+
+`fixup!`/`squash!` commits are allowed locally so you can use
+`git commit --fixup`, but CI checks each commit strictly — squash them
+(`git rebase --autosquash`) before the pull request is merged.
