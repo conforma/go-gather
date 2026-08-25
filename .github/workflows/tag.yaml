@@ -14,7 +14,12 @@ on:
 
 jobs:
   release:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    # Only release from the canonical repository; forks inherit tags but not
+    # releases, so semantic-release would try to re-create an existing tag and
+    # fail. See EC-2161.
+    if: >-
+      github.repository == 'conforma/go-gather' &&
+      (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
 
     steps:
