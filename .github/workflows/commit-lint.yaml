@@ -1,0 +1,76 @@
+# Copyright The Enterprise Contract Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+---
+name: Commit Lint
+
+"on":
+    pull_request:
+        branches:
+        - main
+
+permissions:
+  contents: read
+
+jobs:
+
+  Commit-Lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+          disable-telemetry: true
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Test the validator
+        shell: bash
+        run: bash hack/check-commit-message_test.sh
+
+      - name: Validate commit messages
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ -z "${BASE_SHA}" || -z "${HEAD_SHA}" ]]; then
+            echo "::error::Could not determine PR commit range (base='${BASE_SHA}' head='${HEAD_SHA}')"
+            exit 1
+          fi
+
+          rc=0
+          # --no-merges: the PR's own merge commits are exempt and would
+          # otherwise be validated as GitHub-generated "Merge ..." messages.
+          while read -r sha; do
+            [[ -z "${sha}" ]] && continue
+            if ! git show -s --format=%B "${sha}" | ./hack/check-commit-message.sh; then
+              subject="$(git show -s --format=%s "${sha}")"
+              echo "::error::Non-conventional commit ${sha}: ${subject}"
+              rc=1
+            fi
+          done < <(git rev-list --no-merges "${BASE_SHA}..${HEAD_SHA}")
+
+          if [[ "${rc}" -eq 0 ]]; then
+            echo "All commit messages follow Conventional Commits."
+          fi
+          exit "${rc}"

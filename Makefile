@@ -60,3 +60,14 @@ go-mod-lint:
 .PHONY: lint-fix
 lint-fix: go.work
 	@golangci-lint run --fix -- $$(go work edit -json | jq -c -r '[.Use[].DiskPath] | map_values(. + "/...")[]')
+
+##@ Git hooks
+
+.PHONY: install-hooks
+install-hooks: ## Enable the repo's git hooks (Conventional Commits check)
+	@git config core.hooksPath .githooks
+	@echo "Git hooks enabled: core.hooksPath -> .githooks"
+
+.PHONY: test-hooks
+test-hooks: ## Run the commit-message validator's tests
+	@bash hack/check-commit-message_test.sh

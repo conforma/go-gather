@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Local commit-msg hook: reject commit messages that are not Conventional
+# Commits before they are ever created. Enable with: make install-hooks
+#
+# git passes the path to the commit message file as $1.
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+exec "${REPO_ROOT}/hack/check-commit-message.sh" "$1"
