@@ -19,6 +19,11 @@
       "description": "Group Go version updates across go.mod toolchain and .tool-versions",
       "matchDepNames": ["go", "golang"],
       "groupName": "go version"
+    },
+    {
+      "description": "Keep major updates' commit messages Conventional Commits compliant",
+      "matchUpdateTypes": ["major"],
+      "commitMessagePrefix": "fix(deps)!:"
     }
   ]
 }
