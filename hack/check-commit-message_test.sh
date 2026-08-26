@@ -47,11 +47,20 @@ assert 0 "ci type"                    "ci: pin action to sha"
 assert 0 "header + body"              $'feat: add retry\n\nAdds exponential backoff to the client.'
 assert 0 "strict: plain type"         "feat: add thing" --strict
 
-# --- Exempt in both modes: machine-generated merge/revert ---
-assert 0 "merge commit"              "Merge pull request #339 from robnester-rh/EC-2053"
+# --- Canonical git-generated revert: exempt in both modes ---
 assert 0 "git revert commit"         'Revert "feat: add retry"'
-assert 0 "strict: merge commit"      "Merge pull request #339 from robnester-rh/EC-2053" --strict
 assert 0 "strict: git revert commit" 'Revert "feat: add retry"' --strict
+
+# --- Merge subjects: exempt in hook mode (local merges), rejected in strict ---
+# In CI, real merge commits are excluded by 'git rev-list --no-merges', so a
+# non-merge commit whose subject merely starts with 'Merge ' must not bypass.
+assert 0 "hook: merge commit"              "Merge pull request #339 from robnester-rh/EC-2053"
+assert 1 "strict: merge subject rejected"  "Merge pull request #339 from robnester-rh/EC-2053" --strict
+assert 1 "strict: arbitrary merge subject" "Merge arbitrary text" --strict
+
+# --- Non-canonical revert must not bypass (either mode) ---
+assert 1 "hook: non-canonical revert"      "Revert arbitrary text"
+assert 1 "strict: non-canonical revert"    "Revert arbitrary text" --strict
 
 # --- Autosquash: exempt in hook mode, rejected in strict/CI mode ---
 assert 0 "hook: fixup autosquash"    "fixup! feat: add retry"

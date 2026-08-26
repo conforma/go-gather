@@ -60,20 +60,23 @@ else
   done <<< "$raw"
 fi
 
-# Exempt machine-generated messages that legitimately land on main: merge
-# commits and git's default revert messages (the conventionalcommits parser
-# recognizes 'Revert "..."').
+# Canonical git-generated revert messages ('Revert "<subject>"') are recognized
+# by the conventionalcommits parser; exempt them in both modes. An arbitrary
+# subject that merely starts with "Revert " is not exempt.
 case "$header" in
-  "Merge "*|"Revert "*)
+  'Revert "'*)
     exit 0
     ;;
 esac
 
-# Autosquash commits are a local convenience only; reject them under --strict so
-# they cannot reach main unsquashed.
+# Merge and autosquash (fixup!/squash!/amend!) commits are local conveniences,
+# so exempt them only in lenient (hook) mode. The CI check runs with --strict
+# and already excludes real merge commits via 'git rev-list --no-merges', so a
+# non-merge commit whose subject merely starts with "Merge " must not bypass
+# the gate, and autosquash commits must be squashed before merge.
 if [[ "$strict" != true ]]; then
   case "$header" in
-    "fixup! "*|"squash! "*|"amend! "*)
+    "Merge "*|"fixup! "*|"squash! "*|"amend! "*)
       exit 0
       ;;
   esac
