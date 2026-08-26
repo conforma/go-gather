@@ -59,8 +59,10 @@ assert 1 "strict: merge subject rejected"  "Merge pull request #339 from robnest
 assert 1 "strict: arbitrary merge subject" "Merge arbitrary text" --strict
 
 # --- Non-canonical revert must not bypass (either mode) ---
-assert 1 "hook: non-canonical revert"      "Revert arbitrary text"
-assert 1 "strict: non-canonical revert"    "Revert arbitrary text" --strict
+assert 1 "hook: non-canonical revert"        "Revert arbitrary text"
+assert 1 "strict: non-canonical revert"      "Revert arbitrary text" --strict
+assert 1 "hook: unterminated revert quote"   'Revert "feat: add retry'
+assert 1 "strict: unterminated revert quote" 'Revert "feat: add retry' --strict
 
 # --- Autosquash: exempt in hook mode, rejected in strict/CI mode ---
 assert 0 "hook: fixup autosquash"    "fixup! feat: add retry"

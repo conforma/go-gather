@@ -61,10 +61,11 @@ else
 fi
 
 # Canonical git-generated revert messages ('Revert "<subject>"') are recognized
-# by the conventionalcommits parser; exempt them in both modes. An arbitrary
-# subject that merely starts with "Revert " is not exempt.
+# by the conventionalcommits parser; exempt them in both modes. Require the
+# closing quote so an arbitrary or unterminated "Revert ..." subject is not
+# exempt.
 case "$header" in
-  'Revert "'*)
+  'Revert "'*'"')
     exit 0
     ;;
 esac
