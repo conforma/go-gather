@@ -13,7 +13,7 @@ fail the pull request.
 
 Format:
 
-```
+```text
 <type>[optional scope][!]: <description>
 ```
 
@@ -35,7 +35,7 @@ Rules of thumb:
 
 Examples:
 
-```
+```text
 feat(oci): add retry to default transport
 fix: guard option constructors against nil options
 docs: add godoc comments to exported symbols

@@ -11,7 +11,7 @@ the commit type is what determines version bumps and release notes.
 
 Commit messages must follow:
 
-```
+```text
 <type>[optional scope][!]: <description>
 ```
 
@@ -21,7 +21,7 @@ Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`,
 
 Examples:
 
-```
+```text
 feat(oci): add retry to default transport
 fix: guard option constructors against nil options
 docs: add godoc comments to exported symbols
