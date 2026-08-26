@@ -1,0 +1,10 @@
+# Code owners for go-gather.
+#
+# Changes to the Conventional Commits enforcement (the shared validator, the
+# local hook, and the CI gate) require review from a maintainer so the gate
+# cannot be quietly weakened in the same pull request it protects.
+/hack/check-commit-message.sh       @conforma/devs
+/hack/check-commit-message_test.sh  @conforma/devs
+/.githooks/                         @conforma/devs
+/.github/workflows/commit-lint.yaml @conforma/devs
+/.github/CODEOWNERS                  @conforma/devs
