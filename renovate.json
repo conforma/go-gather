@@ -23,7 +23,7 @@
     {
       "description": "Keep major updates' commit messages Conventional Commits compliant",
       "matchUpdateTypes": ["major"],
-      "commitMessagePrefix": "fix(deps)!:"
+      "commitMessagePrefix": "fix(deps):"
     }
   ]
 }
