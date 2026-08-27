@@ -2,7 +2,7 @@ module github.com/conforma/go-gather
 
 go 1.25.0
 
-toolchain go1.25.8
+toolchain go1.25.14
 
 require (
 	github.com/chainguard-dev/git-urls v1.0.2
