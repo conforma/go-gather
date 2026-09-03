@@ -1,3 +1,6 @@
+# Default code owner for all paths (including .github/).
+* @conforma/devs
+
 # Code owners for go-gather.
 #
 # Changes to the Conventional Commits enforcement (the shared validator, the
