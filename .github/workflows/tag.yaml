@@ -31,7 +31,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: Install dependencies
         run: npm install semantic-release@25.0.3 @semantic-release/github@12.0.6 @semantic-release/commit-analyzer@13.0.1 @semantic-release/release-notes-generator@14.1.0 conventional-changelog-conventionalcommits@9.3.0
