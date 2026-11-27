@@ -1,6 +1,6 @@
 module github.com/conforma/go-gather
 
-go 1.26.0
+go 1.26.10
 
 require (
 	github.com/chainguard-dev/git-urls v1.0.2
